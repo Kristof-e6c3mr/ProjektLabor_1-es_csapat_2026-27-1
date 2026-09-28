@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../WebApi/WebApi.csproj" Id="a079df21-dd63-4bf0-b9b8-f7b7f23b25c0" />
   <Project Path="docker-compose.dcproj">
     <Build />
   </Project>
