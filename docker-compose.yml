@@ -1,0 +1,39 @@
+services:
+  #BLAZOR
+  projectlab1:
+    image: ${DOCKER_REGISTRY-}projectlab1
+    build:
+      context: .
+      dockerfile: ProjectLab1/Dockerfile 
+    depends_on:
+      - webapi
+    ports:
+      # Maps host port 5000 to container port 8080 to avoid conflicting with the API
+      - "5000:8080" 
+
+  #WEB API
+  webapi:
+    image: ${DOCKER_REGISTRY-}webapi
+    build:
+      context: .
+      # IMPORTANT: Update this to point to your API's actual Dockerfile
+      dockerfile: WebApi/Dockerfile 
+    depends_on:
+      - db
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=BlazorAppDb;Username=admin;Password=YourSecurePassword123!
+
+  #POSTGRES
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: YourSecurePassword123!
+      POSTGRES_DB: BlazorAppDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_new:/var/lib/postgresql
+
+volumes:
+  pgdata_new:
