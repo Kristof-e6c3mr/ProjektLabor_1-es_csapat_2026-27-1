@@ -9,7 +9,7 @@ namespace WebApi.Models
         public int TeremID { get; set; }
 
         [Required]
-        public int Teremszam { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
 
         public int Ferohely { get; set; }
 

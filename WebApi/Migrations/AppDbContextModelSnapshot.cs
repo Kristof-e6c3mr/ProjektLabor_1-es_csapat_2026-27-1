@@ -299,8 +299,9 @@ namespace WebApi.Migrations
                     b.Property<int>("Ferohely")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Teremszam")
-                        .HasColumnType("integer");
+                    b.Property<string>("Teremszam")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("TeremID");
 
