@@ -15,9 +15,9 @@ services:
   webapi:
     image: ${DOCKER_REGISTRY-}webapi
     build:
-      context: .
+      context: ./WebApi
       # IMPORTANT: Update this to point to your API's actual Dockerfile
-      dockerfile: WebApi/Dockerfile 
+      dockerfile: Dockerfile 
     depends_on:
       - db
     environment:
