@@ -15,14 +15,13 @@ namespace WebApi.Models
 
         public bool Allapot { get; set; } = true;
 
-        public Felszereltseg FelszereltsegLista { get; set; }
-
         // Idegen kulcs az Adminisztrátorhoz (aki a teremtörzset kezeli)
         public int? AdminisztratorID { get; set; }
         [ForeignKey("AdminisztratorID")]
         public Felhasznalo? Adminisztrator { get; set; }
 
         // Kapcsolatok
+        public ICollection<Felszereltseg> Felszereltsegek { get; set; } = new List<Felszereltseg>();
         public ICollection<Foglalas> Foglalasok { get; set; } = new List<Foglalas>();
         public ICollection<KarbantartasiIdosav> KarbantartasiIdosavok { get; set; } = new List<KarbantartasiIdosav>();
         public ICollection<Kulcs> Kulcsok { get; set; } = new List<Kulcs>();

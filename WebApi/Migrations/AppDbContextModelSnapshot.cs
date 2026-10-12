@@ -22,6 +22,36 @@ namespace WebApi.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FelszereltsegFoglalas", b =>
+                {
+                    b.Property<int>("FoglalasokFoglalasID")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IgenyeltFelszereltsegekFelszereltsegID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("FoglalasokFoglalasID", "IgenyeltFelszereltsegekFelszereltsegID");
+
+                    b.HasIndex("IgenyeltFelszereltsegekFelszereltsegID");
+
+                    b.ToTable("FelszereltsegFoglalas");
+                });
+
+            modelBuilder.Entity("FelszereltsegTerem", b =>
+                {
+                    b.Property<int>("FelszereltsegekFelszereltsegID")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TermekTeremID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("FelszereltsegekFelszereltsegID", "TermekTeremID");
+
+                    b.HasIndex("TermekTeremID");
+
+                    b.ToTable("FelszereltsegTerem");
+                });
+
             modelBuilder.Entity("WebApi.Models.AuditLog", b =>
                 {
                     b.Property<int>("NaploID")
@@ -30,8 +60,17 @@ namespace WebApi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NaploID"));
 
+                    b.Property<int?>("FoglalasID")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("Idobelyeg")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("KarbantartasID")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MesterkulcsJogosultsagID")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Muvelet")
                         .IsRequired()
@@ -45,6 +84,12 @@ namespace WebApi.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("NaploID");
+
+                    b.HasIndex("FoglalasID");
+
+                    b.HasIndex("KarbantartasID");
+
+                    b.HasIndex("MesterkulcsJogosultsagID");
 
                     b.HasIndex("UzemeltetesiIgazgatoID");
 
@@ -72,6 +117,12 @@ namespace WebApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Szerepkor")
                         .IsRequired()
                         .HasColumnType("text");
@@ -79,6 +130,23 @@ namespace WebApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Felhasznalok");
+                });
+
+            modelBuilder.Entity("WebApi.Models.Felszereltseg", b =>
+                {
+                    b.Property<int>("FelszereltsegID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("FelszereltsegID"));
+
+                    b.Property<string>("Nev")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("FelszereltsegID");
+
+                    b.ToTable("Felszereltseg");
                 });
 
             modelBuilder.Entity("WebApi.Models.Foglalas", b =>
@@ -93,9 +161,6 @@ namespace WebApi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("AuditLogID")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("KezdoIdo")
                         .HasColumnType("timestamp with time zone");
 
@@ -109,8 +174,6 @@ namespace WebApi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("FoglalasID");
-
-                    b.HasIndex("AuditLogID");
 
                     b.HasIndex("OktatoID");
 
@@ -160,9 +223,6 @@ namespace WebApi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("KarbantartasID"));
 
-                    b.Property<int>("AuditLogID")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("KezdoIdo")
                         .HasColumnType("timestamp with time zone");
 
@@ -177,8 +237,6 @@ namespace WebApi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("KarbantartasID");
-
-                    b.HasIndex("AuditLogID");
 
                     b.HasIndex("TeremID");
 
@@ -199,7 +257,7 @@ namespace WebApi.Migrations
                     b.Property<bool>("MesterkulcsE")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("TeremID")
+                    b.Property<int?>("TeremID")
                         .HasColumnType("integer");
 
                     b.HasKey("KulcsID");
@@ -236,7 +294,8 @@ namespace WebApi.Migrations
 
                     b.HasIndex("AtvevoID");
 
-                    b.HasIndex("AuditLogID");
+                    b.HasIndex("AuditLogID")
+                        .IsUnique();
 
                     b.HasIndex("KulcsID");
 
@@ -253,26 +312,21 @@ namespace WebApi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("JogosultsagID"));
 
-                    b.Property<int>("AdminisztratorID")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("AuditLogID")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("ErvenyessegKezdete")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ErvenyessegVege")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("FelhasznaloID")
+                        .HasColumnType("integer");
+
                     b.Property<int>("KulcsID")
                         .HasColumnType("integer");
 
                     b.HasKey("JogosultsagID");
 
-                    b.HasIndex("AdminisztratorID");
-
-                    b.HasIndex("AuditLogID");
+                    b.HasIndex("FelhasznaloID");
 
                     b.HasIndex("KulcsID");
 
@@ -293,9 +347,6 @@ namespace WebApi.Migrations
                     b.Property<bool>("Allapot")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("FelszereltsegLista")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Ferohely")
                         .HasColumnType("integer");
 
@@ -310,25 +361,70 @@ namespace WebApi.Migrations
                     b.ToTable("Termek");
                 });
 
+            modelBuilder.Entity("FelszereltsegFoglalas", b =>
+                {
+                    b.HasOne("WebApi.Models.Foglalas", null)
+                        .WithMany()
+                        .HasForeignKey("FoglalasokFoglalasID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WebApi.Models.Felszereltseg", null)
+                        .WithMany()
+                        .HasForeignKey("IgenyeltFelszereltsegekFelszereltsegID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FelszereltsegTerem", b =>
+                {
+                    b.HasOne("WebApi.Models.Felszereltseg", null)
+                        .WithMany()
+                        .HasForeignKey("FelszereltsegekFelszereltsegID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WebApi.Models.Terem", null)
+                        .WithMany()
+                        .HasForeignKey("TermekTeremID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("WebApi.Models.AuditLog", b =>
                 {
+                    b.HasOne("WebApi.Models.Foglalas", "Foglalas")
+                        .WithMany("AuditLogok")
+                        .HasForeignKey("FoglalasID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WebApi.Models.KarbantartasiIdosav", "KarbantartasiIdosav")
+                        .WithMany("AuditLogok")
+                        .HasForeignKey("KarbantartasID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WebApi.Models.MesterkulcsJogosultsag", "MesterkulcsJogosultsag")
+                        .WithMany("AuditLogok")
+                        .HasForeignKey("MesterkulcsJogosultsagID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("WebApi.Models.Felhasznalo", "UzemeltetesiIgazgato")
                         .WithMany("AuditLogok")
                         .HasForeignKey("UzemeltetesiIgazgatoID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Foglalas");
+
+                    b.Navigation("KarbantartasiIdosav");
+
+                    b.Navigation("MesterkulcsJogosultsag");
+
                     b.Navigation("UzemeltetesiIgazgato");
                 });
 
             modelBuilder.Entity("WebApi.Models.Foglalas", b =>
                 {
-                    b.HasOne("WebApi.Models.AuditLog", "AuditLog")
-                        .WithMany("Foglalasok")
-                        .HasForeignKey("AuditLogID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("WebApi.Models.Felhasznalo", "Oktato")
                         .WithMany("Foglalasok")
                         .HasForeignKey("OktatoID")
@@ -340,8 +436,6 @@ namespace WebApi.Migrations
                         .HasForeignKey("TeremID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("AuditLog");
 
                     b.Navigation("Oktato");
 
@@ -369,19 +463,11 @@ namespace WebApi.Migrations
 
             modelBuilder.Entity("WebApi.Models.KarbantartasiIdosav", b =>
                 {
-                    b.HasOne("WebApi.Models.AuditLog", "AuditLog")
-                        .WithMany("KarbantartasiIdosavok")
-                        .HasForeignKey("AuditLogID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("WebApi.Models.Terem", "Terem")
                         .WithMany("KarbantartasiIdosavok")
                         .HasForeignKey("TeremID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("AuditLog");
 
                     b.Navigation("Terem");
                 });
@@ -391,8 +477,7 @@ namespace WebApi.Migrations
                     b.HasOne("WebApi.Models.Terem", "Terem")
                         .WithMany("Kulcsok")
                         .HasForeignKey("TeremID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Terem");
                 });
@@ -406,8 +491,8 @@ namespace WebApi.Migrations
                         .IsRequired();
 
                     b.HasOne("WebApi.Models.AuditLog", "AuditLog")
-                        .WithMany("KulcsMozgasok")
-                        .HasForeignKey("AuditLogID")
+                        .WithOne("KulcsMozgas")
+                        .HasForeignKey("WebApi.Models.KulcsMozgas", "AuditLogID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -434,15 +519,9 @@ namespace WebApi.Migrations
 
             modelBuilder.Entity("WebApi.Models.MesterkulcsJogosultsag", b =>
                 {
-                    b.HasOne("WebApi.Models.Felhasznalo", "Adminisztrator")
+                    b.HasOne("WebApi.Models.Felhasznalo", "Felhasznalo")
                         .WithMany("MesterkulcsJogosultsagok")
-                        .HasForeignKey("AdminisztratorID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WebApi.Models.AuditLog", "AuditLog")
-                        .WithMany("MesterkulcsJogosultsagok")
-                        .HasForeignKey("AuditLogID")
+                        .HasForeignKey("FelhasznaloID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -452,9 +531,7 @@ namespace WebApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Adminisztrator");
-
-                    b.Navigation("AuditLog");
+                    b.Navigation("Felhasznalo");
 
                     b.Navigation("Kulcs");
                 });
@@ -471,13 +548,7 @@ namespace WebApi.Migrations
 
             modelBuilder.Entity("WebApi.Models.AuditLog", b =>
                 {
-                    b.Navigation("Foglalasok");
-
-                    b.Navigation("KarbantartasiIdosavok");
-
-                    b.Navigation("KulcsMozgasok");
-
-                    b.Navigation("MesterkulcsJogosultsagok");
+                    b.Navigation("KulcsMozgas");
                 });
 
             modelBuilder.Entity("WebApi.Models.Felhasznalo", b =>
@@ -497,11 +568,26 @@ namespace WebApi.Migrations
                     b.Navigation("PortasKulcsMozgasok");
                 });
 
+            modelBuilder.Entity("WebApi.Models.Foglalas", b =>
+                {
+                    b.Navigation("AuditLogok");
+                });
+
+            modelBuilder.Entity("WebApi.Models.KarbantartasiIdosav", b =>
+                {
+                    b.Navigation("AuditLogok");
+                });
+
             modelBuilder.Entity("WebApi.Models.Kulcs", b =>
                 {
                     b.Navigation("KulcsMozgasok");
 
                     b.Navigation("MesterkulcsJogosultsagok");
+                });
+
+            modelBuilder.Entity("WebApi.Models.MesterkulcsJogosultsag", b =>
+                {
+                    b.Navigation("AuditLogok");
                 });
 
             modelBuilder.Entity("WebApi.Models.Terem", b =>

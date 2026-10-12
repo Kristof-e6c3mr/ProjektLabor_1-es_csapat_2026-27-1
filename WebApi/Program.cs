@@ -36,6 +36,16 @@ namespace WebApi
 
             app.MapControllers();
 
+            // --- ADATBÁZIS INICIALIZÁLÁSA ÉS TESZTADATOK FELTÖLTÉSE ---
+            using (var scope = app.Services.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<WebApi.Data.AppDbContext>();
+                // Ellenőrzi, hogy van-e adatbázis, ha nincs létrehozza a migrációk alapján
+                context.Database.EnsureCreated();
+                // Feltölti a tesztadatokkal
+                WebApi.Data.DbInitializer.Initialize(context);
+            }
+
             app.Run();
         }
     }

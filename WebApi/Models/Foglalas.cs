@@ -10,7 +10,7 @@ namespace WebApi.Models
 
         public DateTime KezdoIdo { get; set; }
         public DateTime ZaroIdo { get; set; }
-
+        
         public string Allapot { get; set; } = "Aktiv";
 
         // Idegen kulcsok
@@ -22,8 +22,12 @@ namespace WebApi.Models
         [ForeignKey("TeremID")]
         public Terem? Terem { get; set; }
 
-        public int AuditLogID { get; set; }
-        [ForeignKey("AuditLogID")]
-        public AuditLog? AuditLog { get; set; }
+        //public int AuditLogID { get; set; }
+        //[ForeignKey("AuditLogID")]
+        //public AuditLog? AuditLog { get; set; }
+        public ICollection<AuditLog> AuditLogok { get; set; } = new List<AuditLog>();
+
+        // Kapcsolat
+        public ICollection<Felszereltseg> IgenyeltFelszereltsegek { get; set; } = new List<Felszereltseg>();
     }
 }

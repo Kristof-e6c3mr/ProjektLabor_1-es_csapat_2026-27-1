@@ -18,8 +18,9 @@ namespace WebApi.Models
         [ForeignKey("TeremID")]
         public Terem? Terem { get; set; }
 
-        public int AuditLogID { get; set; }
-        [ForeignKey("AuditLogID")]
-        public AuditLog? AuditLog { get; set; }
+        //public int AuditLogID { get; set; }
+        //[ForeignKey("AuditLogID")]
+        //public AuditLog? AuditLog { get; set; }
+        public ICollection<AuditLog> AuditLogok { get; set; } = new List<AuditLog>();
     }
 }

@@ -13,7 +13,7 @@ namespace WebApi.Models
         public bool KiadvaE { get; set; }
 
         // Idegen kulcs a Teremhez
-        public int TeremID { get; set; }
+        public int? TeremID { get; set; }
         [ForeignKey("TeremID")]
         public Terem? Terem { get; set; }
 

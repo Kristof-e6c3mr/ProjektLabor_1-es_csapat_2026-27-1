@@ -12,15 +12,27 @@ namespace WebApi.Models
         public string Muvelet { get; set; } = string.Empty;
         public string Reszletek { get; set; } = string.Empty;
 
-        // Idegen kulcs az Üzemeltetési igazgatóhoz (aki elemzi/kezeli)
+        // Idegen kulcs
         public int UzemeltetesiIgazgatoID { get; set; }
         [ForeignKey("UzemeltetesiIgazgatoID")]
         public Felhasznalo? UzemeltetesiIgazgato { get; set; }
 
-        // Kapcsolatok visszafelé a többi entitáshoz, amik hivatkoznak az audit logra
-        public ICollection<KulcsMozgas> KulcsMozgasok { get; set; } = new List<KulcsMozgas>();
-        public ICollection<Foglalas> Foglalasok { get; set; } = new List<Foglalas>();
-        public ICollection<KarbantartasiIdosav> KarbantartasiIdosavok { get; set; } = new List<KarbantartasiIdosav>();
-        public ICollection<MesterkulcsJogosultsag> MesterkulcsJogosultsagok { get; set; } = new List<MesterkulcsJogosultsag>();
+        public int? FoglalasID { get; set; }
+        [ForeignKey("FoglalasID")]
+        public Foglalas? Foglalas { get; set; }
+
+        public int? MesterkulcsJogosultsagID { get; set; }
+        [ForeignKey("MesterkulcsJogosultsagID")]
+        public MesterkulcsJogosultsag? MesterkulcsJogosultsag { get; set; }
+
+        public int? KarbantartasID { get; set; }
+        [ForeignKey("KarbantartasID")]
+        public KarbantartasiIdosav? KarbantartasiIdosav { get; set; }
+
+        // Kapcsolat
+        public KulcsMozgas? KulcsMozgas { get; set; }
+        //public ICollection<Foglalas> Foglalasok { get; set; } = new List<Foglalas>();
+        //public ICollection<KarbantartasiIdosav> KarbantartasiIdosavok { get; set; } = new List<KarbantartasiIdosav>();
+        //public ICollection<MesterkulcsJogosultsag> MesterkulcsJogosultsagok { get; set; } = new List<MesterkulcsJogosultsag>();
     }
 }
