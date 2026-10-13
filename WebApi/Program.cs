@@ -2,6 +2,7 @@
 using Scalar.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using WebApi.Data;
+using Microsoft.AspNetCore.Identity.Data;
 
 namespace WebApi
 {
@@ -45,6 +46,19 @@ namespace WebApi
                 // Feltölti a tesztadatokkal
                 WebApi.Data.DbInitializer.Initialize(context);
             }
+
+            // POST Endpoint a Login Requestre
+            app.MapPost("/api/login", (LoginModel request) =>
+            {
+                //static creds for testing
+                if (request.Username == "asd" && request.Password == "123")
+                {
+                    return Results.Ok(new { Token = "XD" });
+                }
+
+                return Results.Unauthorized();
+            }
+            ).WithName("Login").WithOpenApi();
 
             app.Run();
         }
