@@ -27,12 +27,4 @@ RUN dotnet publish "./WebApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-
-#install dev cert manually 
-USER root
-COPY dev-cert.crt /usr/local/share/ca-certificates/
-RUN update-ca-certificates
-USER app
-
-
 ENTRYPOINT ["dotnet", "WebApi.dll"]
