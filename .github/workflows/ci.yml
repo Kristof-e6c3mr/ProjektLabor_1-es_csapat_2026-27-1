@@ -17,13 +17,13 @@ jobs:
     - name: .NET környezet beállítása
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x' # Írd át 7.0.x-re, ha azt használtok
+        dotnet-version: '8.0.x'
 
     - name: Függőségek telepítése (Restore)
-      run: dotnet restore
+      run: dotnet restore WebApi.Tests/WebApi.Tests.csproj
 
     - name: Kód fordítása (Build)
-      run: dotnet build --no-restore
+      run: dotnet build WebApi.Tests/WebApi.Tests.csproj --no-restore
 
     - name: Tesztek futtatása (Test)
-      run: dotnet test WebApi.Tests/WebApi.Tests.csproj
+      run: dotnet test WebApi.Tests/WebApi.Tests.csproj --no-build --verbosity normal
