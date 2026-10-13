@@ -1,0 +1,50 @@
+﻿@page "/login" 
+@inject HttpClient Http
+@inject ILogger<Login> Logger
+
+<h3>Login Page</h3>
+<EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm">
+    <div style="margin-bottom: 10px;">
+        <label>Username:</label>
+        <InputText @bind-Value="loginModel.Username" />
+    </div>
+    
+    <div style="margin-bottom: 10px;">
+        <label>Password:</label>
+        <InputText @bind-Value="loginModel.Password" type="password" />
+    </div>
+    
+    <button type="submit">Log In</button>
+</EditForm>
+
+
+
+
+
+@code {
+
+    [SupplyParameterFromForm]
+    private LoginModel loginModel { get; set; } = new();
+
+    private async Task HandleLogin()
+    {
+        // 3. Make the API call directly from C#
+        //var response = await Http.PostAsJsonAsync("https://your-api.com/login", loginModel);
+        Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
+
+        // if (response.IsSuccessStatusCode)
+        // {
+        //     // Handle success (e.g., save the token, redirect the user)
+        // }
+        // else
+        // {
+        //     // Handle failure (e.g., show an error message)
+        // }
+    }
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

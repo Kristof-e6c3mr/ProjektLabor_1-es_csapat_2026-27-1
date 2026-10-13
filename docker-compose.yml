@@ -8,7 +8,6 @@ services:
     depends_on:
       - webapi
     ports:
-      # Maps host port 5000 to container port 8080 to avoid conflicting with the API
       - "5000:8080" 
 
   #WEB API
@@ -16,7 +15,6 @@ services:
     image: ${DOCKER_REGISTRY-}webapi
     build:
       context: ./WebApi
-      # IMPORTANT: Update this to point to your API's actual Dockerfile
       dockerfile: Dockerfile 
     depends_on:
       - db
