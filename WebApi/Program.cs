@@ -1,13 +1,14 @@
 
-using Scalar.AspNetCore;
-using Microsoft.EntityFrameworkCore;
-using WebApi.Data;    // AppDbContext
-using WebApi.Models;  // Tables
 using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.IdentityModel.Tokens;
+using WebApi.Data;    // AppDbContext
+using WebApi.Models;  // Tables
 
 
 namespace WebApi
@@ -100,6 +101,16 @@ namespace WebApi
             })
             .WithName("Login");
             //.withOpenApi() Deprecated?
+
+            // D pont: Szolgáltatás állapotjelző (Health Check) végpont
+            app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
+
+            // Alapvető adat-lekérdező végpont (felhasználók listázása)
+            app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
+            {
+                return await db.Felhasznalok.ToListAsync();
+            }).WithName("GetFelhasznalok");
+
             app.Run();
         }
     }
