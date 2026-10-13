@@ -29,17 +29,19 @@
     private async Task HandleLogin()
     {
         // 3. Make the API call directly from C#
-        //var response = await Http.PostAsJsonAsync("https://your-api.com/login", loginModel);
+        var response = await Http.PostAsJsonAsync("api/login", loginModel);
         Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
 
-        // if (response.IsSuccessStatusCode)
-        // {
-        //     // Handle success (e.g., save the token, redirect the user)
-        // }
-        // else
-        // {
-        //     // Handle failure (e.g., show an error message)
-        // }
+        if (response.IsSuccessStatusCode)
+        {
+            //debug
+            Logger.LogInformation("Yippeeee");
+        }
+        else
+        {
+            // handle failure (e.g., show an error message)
+            Logger.LogInformation("-___-");
+        }
     }
 
     public class LoginModel

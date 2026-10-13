@@ -30,7 +30,7 @@ namespace WebApi
                 app.MapScalarApiReference();
             }
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
