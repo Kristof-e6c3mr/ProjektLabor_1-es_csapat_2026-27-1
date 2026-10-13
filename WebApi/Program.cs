@@ -1,8 +1,14 @@
 
 using Scalar.AspNetCore;
 using Microsoft.EntityFrameworkCore;
-using WebApi.Data;
+using WebApi.Data;    // AppDbContext
+using WebApi.Models;  // Tables
 using Microsoft.AspNetCore.Identity.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+
 
 namespace WebApi
 {
@@ -12,8 +18,12 @@ namespace WebApi
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            //configure DBcontext to use Postgre SQL
+            builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+
+            // Add services to the container.
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
@@ -50,18 +60,48 @@ namespace WebApi
             }
 
             // POST Endpoint a Login Requestre
-            app.MapPost("/api/login", (LoginModel request) =>
+            app.MapPost("/api/login", async (LoginModel request, AppDbContext db, IConfiguration config) =>
             {
-                //static creds for testing
-                if (request.Username == "asd" && request.Password == "123")
+                var user = await db.Felhasznalok
+                    .FirstOrDefaultAsync(f => f.Nev == request.Username || f.Email == request.Username);
+
+                if (user != null && user.Jelszo == request.Password)
                 {
-                    return Results.Ok(new { Token = "XD" });
+                    // Create the security key
+                    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!));
+                    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+                    // Define the payload
+                    var claims = new[]
+                    {
+                        new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                        new Claim(ClaimTypes.NameIdentifier, user.Nev),
+                        new Claim(ClaimTypes.Role, user.Szerepkor)
+                    };
+
+                    // 3. Assemble the token
+                    var token = new JwtSecurityToken(
+                        issuer: config["JwtSettings:Issuer"],
+                        audience: config["JwtSettings:Audience"],
+                        claims: claims,
+                        expires: DateTime.UtcNow.AddMinutes(15), // Short lifespan for security
+                        signingCredentials: credentials);
+
+                    // 4. Serialize to a string
+                    var jwtString = new JwtSecurityTokenHandler().WriteToken(token);
+
+                    return Results.Ok(new
+                    {
+                        Token = jwtString,
+                        Role = user.Szerepkor
+                    });
                 }
 
                 return Results.Unauthorized();
-            }
-            ).WithName("Login").WithOpenApi();
-
+            })
+            .WithName("Login");
+            //.withOpenApi() Deprecated?
             app.Run();
         }
     }

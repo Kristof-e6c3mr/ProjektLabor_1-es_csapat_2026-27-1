@@ -17,6 +17,22 @@
     <button type="submit">Log In</button>
 </EditForm>
 
+@if (apiResponse != null)
+{
+    <div style="margin-top: 20px; padding: 15px; border: 1px solid #4CAF50; background-color: #f1f8e9;">
+        <h4>Login Successful!</h4>
+        <p><strong>Role (Szerepkör):</strong> @apiResponse.Role</p>
+        <p><strong>JWT Token:</strong></p>
+        <p style="word-break: break-all; font-family: monospace; font-size: 0.9em;">@apiResponse.Token</p>
+    </div>
+}
+else if (loginFailed)
+{
+    <div style="margin-top: 15px; color: red;">
+        Invalid username or password. Please try again.
+    </div>
+}
+
 
 
 
@@ -26,21 +42,28 @@
     [SupplyParameterFromForm]
     private LoginModel loginModel { get; set; } = new();
 
+    private LoginResponse? apiResponse;
+    private bool loginFailed;
+
     private async Task HandleLogin()
     {
         // 3. Make the API call directly from C#
         var response = await Http.PostAsJsonAsync("api/login", loginModel);
         Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
 
+        loginFailed = false;
+        apiResponse = null;
+
         if (response.IsSuccessStatusCode)
         {
-            //debug
-            Logger.LogInformation("Yippeeee");
+            // Deserialize the JSON Payload
+            apiResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            Logger.LogInformation("Login success! Role assigned: {Role}", apiResponse?.Role);
         }
         else
         {
-            // handle failure (e.g., show an error message)
-            Logger.LogInformation("-___-");
+            loginFailed = true;
+            Logger.LogWarning("Login failed with status code: {StatusCode}", response.StatusCode);
         }
     }
 
@@ -48,5 +71,11 @@
     {
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
+    }
+
+    public class LoginResponse
+    {
+        public string Token { get; set; } = "";
+        public string Role { get; set; } = "";
     }
 }
