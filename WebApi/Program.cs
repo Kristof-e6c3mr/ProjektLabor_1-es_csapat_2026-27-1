@@ -105,6 +105,12 @@ namespace WebApi
             // D pont: Szolgáltatás állapotjelző (Health Check) végpont
             app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
 
+            // Alapvető adat-lekérdező végpont (felhasználók listázása)
+            app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
+            {
+                return await db.Felhasznalok.ToListAsync();
+            }).WithName("GetFelhasznalok");
+
             app.Run();
         }
     }
