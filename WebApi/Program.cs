@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -9,7 +8,6 @@ using System.Security.Claims;
 using System.Text;
 using WebApi.Data;    // AppDbContext
 using WebApi.Models;  // Tables
-
 
 namespace WebApi
 {
@@ -23,12 +21,16 @@ namespace WebApi
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
             // Add services to the container.
             builder.Services.AddControllers();
+
+            builder.Services.ConfigureHttpJsonOptions(options =>
+            {
+                options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+            });
+
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
-
 
             var app = builder.Build();
 
@@ -44,7 +46,6 @@ namespace WebApi
             }
 
             app.UseAuthorization();
-
 
             app.MapControllers();
 
@@ -100,7 +101,6 @@ namespace WebApi
                 return Results.Unauthorized();
             })
             .WithName("Login");
-            //.withOpenApi() Deprecated?
 
             // D pont: Szolgáltatás állapotjelző (Health Check) végpont
             app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
@@ -108,7 +108,10 @@ namespace WebApi
             // Alapvető adat-lekérdező végpont (felhasználók listázása)
             app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
             {
-                return await db.Felhasznalok.ToListAsync();
+                // JAVÍTÁS: Projektálás a végtelen ciklus elkerülésére a séma generálásakor
+                return await db.Felhasznalok
+                    .Select(f => new { f.Id, f.Nev, f.Email, f.Szerepkor })
+                    .ToListAsync();
             }).WithName("GetFelhasznalok");
 
             app.Run();
