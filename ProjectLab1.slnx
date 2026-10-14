@@ -3,5 +3,6 @@
     <Build />
   </Project>
   <Project Path="ProjectLab1/ProjectLab1.csproj" />
+  <Project Path="WebApi.Tests/WebApi.Tests.csproj" />
   <Project Path="WebApi/WebApi.csproj" />
 </Solution>
