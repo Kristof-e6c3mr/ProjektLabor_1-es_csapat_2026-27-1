@@ -85,7 +85,7 @@ namespace WebApi
                         issuer: config["JwtSettings:Issuer"],
                         audience: config["JwtSettings:Audience"],
                         claims: claims,
-                        expires: DateTime.UtcNow.AddMinutes(15), // Short lifespan for security
+                        expires: DateTime.UtcNow.AddMinutes(15),
                         signingCredentials: credentials);
 
                     // 4. Serialize to a string

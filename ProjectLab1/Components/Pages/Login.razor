@@ -47,7 +47,7 @@ else if (loginFailed)
 
     private async Task HandleLogin()
     {
-        // 3. Make the API call directly from C#
+        
         var response = await Http.PostAsJsonAsync("api/login", loginModel);
         Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
 
