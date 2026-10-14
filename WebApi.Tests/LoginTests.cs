@@ -1,10 +1,13 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+
 using WebApi;
 using WebApi.Data;
+
 using Xunit;
 
 namespace WebApi.Tests

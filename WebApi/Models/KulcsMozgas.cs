@@ -14,11 +14,11 @@ namespace WebApi.Models
         public int KulcsID { get; set; }
         [ForeignKey("KulcsID")]
         public Kulcs? Kulcs { get; set; }
-        
+
         public int AtvevoID { get; set; }
         [ForeignKey("AtvevoID")]
         public Felhasznalo? Atvevo { get; set; }
-        
+
         public int PortasID { get; set; }
         [ForeignKey("PortasID")]
         public Felhasznalo? Portas { get; set; }

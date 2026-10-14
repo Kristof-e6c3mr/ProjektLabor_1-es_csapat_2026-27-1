@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
+﻿using System.Reflection.Emit;
+
+using Microsoft.EntityFrameworkCore;
+
 using WebApi.Models;
 
 namespace WebApi.Data

@@ -10,7 +10,7 @@ namespace WebApi.Models
 
         public DateTime KezdoIdo { get; set; }
         public DateTime ZaroIdo { get; set; }
-        
+
         public string Allapot { get; set; } = "Aktiv";
 
         // Idegen kulcsok

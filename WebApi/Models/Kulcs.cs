@@ -7,9 +7,9 @@ namespace WebApi.Models
     {
         [Key]
         public int KulcsID { get; set; }
-        
+
         public bool MesterkulcsE { get; set; }
-        
+
         public bool KiadvaE { get; set; }
 
         // Idegen kulcs a Teremhez
