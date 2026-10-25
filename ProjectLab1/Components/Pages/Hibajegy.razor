@@ -1,0 +1,98 @@
+﻿@page "/hibajegy"
+@rendermode InteractiveServer
+@inject HttpClient Http
+
+<PageTitle>Hibajegy felvétele</PageTitle>
+
+<div class="container mt-4">
+    <h3>Új hibajegy felvétele</h3>
+    <hr />
+
+    @if (termek == null)
+    {
+        <p><em>Termek betöltése...</em></p>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label class="form-label fw-bold">Érintett terem:</label>
+                    <select class="form-select" @bind="ujHiba.TeremID">
+                        <option value="0">-- Válassz termet --</option>
+                        @foreach (var terem in termek)
+                        {
+                            <option value="@terem.TeremID">@terem.Teremszam</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label fw-bold">Hiba leírása:</label>
+                    <textarea class="form-control" rows="5" placeholder="Pl.: Kiégett az izzó, nem működik a projektor..." @bind="ujHiba.Leiras"></textarea>
+                </div>
+
+                <button class="btn btn-primary" @onclick="HibajegyMentes">Jegy rögzítése</button>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(uzenet))
+    {
+        <div class="alert @(sikeres ? "alert-success" : "alert-danger") mt-3 col-md-6">
+            @uzenet
+        </div>
+    }
+</div>
+
+@code {
+    private List<TeremDto>? termek;
+    private HibaCreateDto ujHiba = new HibaCreateDto { PortasID = 1 }; // Fix PortasID, amíg nincs beállítva a JWT tokenes auth
+    private string uzenet = "";
+    private bool sikeres = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Termek lekérése az API-ból a lenyíló listához
+        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/hibak/termek");
+    }
+
+    private async Task HibajegyMentes()
+    {
+        if (ujHiba.TeremID == 0 || string.IsNullOrWhiteSpace(ujHiba.Leiras))
+        {
+            sikeres = false;
+            uzenet = "Kérlek válassz termet és add meg a hiba leírását!";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/hibak", ujHiba);
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeres = true;
+            uzenet = "Hibajegy sikeresen rögzítve az adatbázisban!";
+            // Űrlap alaphelyzetbe állítása
+            ujHiba.Leiras = "";
+            ujHiba.TeremID = 0;
+        }
+        else
+        {
+            sikeres = false;
+            uzenet = "Váratlan hiba történt a mentés során.";
+        }
+    }
+
+    public class TeremDto
+    {
+        public int TeremID { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
+    }
+
+    public class HibaCreateDto
+    {
+        public string Leiras { get; set; } = string.Empty;
+        public int TeremID { get; set; }
+        public int PortasID { get; set; }
+    }
+}
