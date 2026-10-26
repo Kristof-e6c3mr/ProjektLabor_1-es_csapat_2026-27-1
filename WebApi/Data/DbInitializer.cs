@@ -15,9 +15,9 @@ namespace WebApi.Data
             string GeneratePin() => rnd.Next(100000, 999999).ToString();
 
             // 1. FELHASZNÁLÓK (Mindannyian kapnak egy véletlen 6 karakteres PIN-kódot)
-            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = "titkos123", Szerepkor = "Adminisztrator", PinKod = GeneratePin() };
-            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = "titkos123", Szerepkor = "UzemeltetesiIgazgato", PinKod = GeneratePin() };
-            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = "titkos123", Szerepkor = "Portas", PinKod = GeneratePin() };
+            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = "titkos123", Szerepkor = "Adminisztrator", PinKod = null };
+            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = "titkos123", Szerepkor = "UzemeltetesiIgazgato", PinKod = null };
+            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = "titkos123", Szerepkor = "Portas", PinKod = null };
 
             var oktato1 = new Felhasznalo { Nev = "Dr. Kiss Oktató", Email = "kiss.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato", PinKod = GeneratePin() };
             var oktato2 = new Felhasznalo { Nev = "Dr. Szabó Oktató", Email = "szabo.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato", PinKod = GeneratePin() };
