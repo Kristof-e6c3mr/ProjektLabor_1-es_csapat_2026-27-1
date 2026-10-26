@@ -1,0 +1,160 @@
+﻿@page "/kulcsfelvetel"
+@rendermode InteractiveServer
+@inject HttpClient Http
+
+<PageTitle>Kulcsfelvétel és leadás</PageTitle>
+
+<div class="container mt-4">
+    <h3>Kulcsok kiadása és visszavétele</h3>
+    <hr />
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger">@hibaUzenet</div>
+    }
+    @if (!string.IsNullOrEmpty(sikeresUzenet))
+    {
+        <div class="alert alert-success">@sikeresUzenet</div>
+    }
+
+    @if (kulcsok == null || oktatok == null)
+    {
+        <p><em>Adatok betöltése...</em></p>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Terem / Típus</th>
+                    <th>Állapot</th>
+                    <th>Oktató azonosítása (Kiadáshoz)</th>
+                    <th>Művelet</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var kulcs in kulcsok)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-bold">@(kulcs.MesterkulcsE ? "Mesterkulcs" : kulcs.Teremszam)</span>
+                        </td>
+                        <td>
+                            @if (kulcs.KiadvaE)
+                            {
+                                <span class="badge bg-warning text-dark">Kiadva</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Portán</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!kulcs.KiadvaE)
+                            {
+                                <select class="form-select form-select-sm" @bind="kulcs.KivalasztottOktatoID">
+                                    <option value="0">-- Válassz oktatót --</option>
+                                    @foreach (var oktato in oktatok)
+                                    {
+                                        <option value="@oktato.Id">@oktato.Nev</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!kulcs.KiadvaE)
+                            {
+                                <button class="btn btn-primary btn-sm" @onclick="() => KulcsKiad(kulcs)">Kiadás</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-secondary btn-sm" @onclick="() => KulcsVisszavesz(kulcs.KulcsID)">Visszavétel</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<KulcsViewModel>? kulcsok;
+    private List<OktatoDto>? oktatok;
+    private string hibaUzenet = "";
+    private string sikeresUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AdatokBetoltese();
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        oktatok = await Http.GetFromJsonAsync<List<OktatoDto>>("api/kulcsmozgas/oktatok");
+        // Újrahasznosítjuk a meglévő Kulcsok API-t a listázáshoz
+        kulcsok = await Http.GetFromJsonAsync<List<KulcsViewModel>>("api/kulcsok");
+    }
+
+    private async Task KulcsKiad(KulcsViewModel kulcs)
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+
+        if (kulcs.KivalasztottOktatoID == 0)
+        {
+            hibaUzenet = "Kérlek válaszd ki az oktatót a kulcs kiadásához!";
+            return;
+        }
+
+        var dto = new { KulcsID = kulcs.KulcsID, OktatoID = kulcs.KivalasztottOktatoID };
+        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/kiadas", dto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = "Kulcs sikeresen kiadva!";
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task KulcsVisszavesz(int kulcsId)
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+
+        var response = await Http.PostAsync($"api/kulcsmozgas/visszavetel/{kulcsId}", null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = "Kulcs sikeresen visszavéve a portára!";
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = "Hiba történt a visszavétel során.";
+        }
+    }
+
+    public class OktatoDto
+    {
+        public int Id { get; set; }
+        public string Nev { get; set; } = string.Empty;
+    }
+
+    public class KulcsViewModel
+    {
+        public int KulcsID { get; set; }
+        public bool MesterkulcsE { get; set; }
+        public bool KiadvaE { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
+        public int KivalasztottOktatoID { get; set; } // Kliens oldali segédmező
+    }
+}
