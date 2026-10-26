@@ -11,14 +11,17 @@ namespace WebApi.Data
 
             var rnd = new Random();
 
-            // 1. FELHASZNÁLÓK
-            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = "titkos123", Szerepkor = "Adminisztrator" };
-            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = "titkos123", Szerepkor = "UzemeltetesiIgazgato" };
-            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = "titkos123", Szerepkor = "Portas" };
+            // Segédfüggvény egy 6 karakteres véletlen szám string generálásához
+            string GeneratePin() => rnd.Next(100000, 999999).ToString();
 
-            var oktato1 = new Felhasznalo { Nev = "Dr. Kiss Oktató", Email = "kiss.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
-            var oktato2 = new Felhasznalo { Nev = "Dr. Szabó Oktató", Email = "szabo.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
-            var oktato3 = new Felhasznalo { Nev = "Dr. Tóth Oktató", Email = "toth.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
+            // 1. FELHASZNÁLÓK (Mindannyian kapnak egy véletlen 6 karakteres PIN-kódot)
+            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = "titkos123", Szerepkor = "Adminisztrator", PinKod = GeneratePin() };
+            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = "titkos123", Szerepkor = "UzemeltetesiIgazgato", PinKod = GeneratePin() };
+            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = "titkos123", Szerepkor = "Portas", PinKod = GeneratePin() };
+
+            var oktato1 = new Felhasznalo { Nev = "Dr. Kiss Oktató", Email = "kiss.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato", PinKod = GeneratePin() };
+            var oktato2 = new Felhasznalo { Nev = "Dr. Szabó Oktató", Email = "szabo.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato", PinKod = GeneratePin() };
+            var oktato3 = new Felhasznalo { Nev = "Dr. Tóth Oktató", Email = "toth.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato", PinKod = GeneratePin() };
 
             context.Felhasznalok.AddRange(admin, uzemelteto, portas, oktato1, oktato2, oktato3);
 
