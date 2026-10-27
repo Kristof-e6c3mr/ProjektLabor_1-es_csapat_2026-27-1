@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Adminisztrator")]
     public class KulcsokController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -40,7 +42,6 @@ namespace WebApi.Controllers
         {
             var kulcs = new Kulcs
             {
-                // Ha TeremID == 0, akkor automatikusan mesterkulcs lesz
                 MesterkulcsE = dto.TeremID == 0,
                 KiadvaE = false,
                 TeremID = dto.TeremID == 0 ? null : dto.TeremID

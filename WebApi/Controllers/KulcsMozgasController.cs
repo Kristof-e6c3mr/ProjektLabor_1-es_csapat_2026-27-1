@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Portas")]
     public class KulcsMozgasController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,7 +19,6 @@ namespace WebApi.Controllers
             _context = context;
         }
 
-        // 1. MEGLÉVŐ: Oktatók lekérése a lenyílóhoz (Megtartva)
         [HttpGet("oktatok")]
         public async Task<IActionResult> GetOktatok()
         {
@@ -28,7 +29,6 @@ namespace WebApi.Controllers
             return Ok(oktatok);
         }
 
-        // 2. ÚJ: Oktató azonosítása PIN kód alapján
         [HttpPost("azonositas")]
         public async Task<IActionResult> AzonositasPinAlapjan([FromBody] string pinKod)
         {
@@ -41,7 +41,6 @@ namespace WebApi.Controllers
             return Ok(new { oktato.Id, oktato.Nev });
         }
 
-        // 3. ÚJ: Az oktató kiadható kulcsainak lekérdezése
         [HttpGet("kiadhato-kulcsok/{oktatoId}")]
         public async Task<IActionResult> GetKiadhatoKulcsok(int oktatoId)
         {
@@ -51,7 +50,6 @@ namespace WebApi.Controllers
 
             var elerhetoKulcsok = new List<KiadhatoKulcsDto>();
 
-            // A) Napi foglalásokhoz tartozó termek
             var maiFoglalasok = await _context.Foglalasok
                 .Include(f => f.Terem)
                 .Where(f => f.OktatoID == oktatoId &&
@@ -78,7 +76,6 @@ namespace WebApi.Controllers
                 }
             }
 
-            // B) Érvényes mesterkulcs jogosultságok
             var mesterkulcsJogosultsagok = await _context.MesterkulcsJogosultsagok
                 .Include(m => m.Kulcs)
                 .Where(m => m.FelhasznaloID == oktatoId &&
@@ -103,7 +100,6 @@ namespace WebApi.Controllers
             return Ok(elerhetoKulcsok);
         }
 
-        // 4. FRISSÍTETT: Kulcskiadás bejelentkezett portással
         [HttpPost("kiadas")]
         public async Task<IActionResult> KulcsKiadas([FromBody] KulcsKiadasKeresDto dto)
         {
@@ -115,7 +111,7 @@ namespace WebApi.Controllers
             {
                 KulcsID = dto.KulcsID,
                 AtvevoID = dto.OktatoID,
-                PortasID = dto.PortasID, // A frontendről érkezik a JWT alapján
+                PortasID = dto.PortasID,
                 Idobelyeg = DateTime.UtcNow
             };
 
@@ -126,7 +122,6 @@ namespace WebApi.Controllers
             return Ok();
         }
 
-        // 5. MEGLÉVŐ: Kulcs visszavétele (Megtartva)
         [HttpPost("visszavetel/{kulcsId}")]
         public async Task<IActionResult> KulcsVisszavetel(int kulcsId)
         {

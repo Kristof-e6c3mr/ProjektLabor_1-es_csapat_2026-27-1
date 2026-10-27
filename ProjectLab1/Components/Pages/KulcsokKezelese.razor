@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Kulcsok kezelése</PageTitle>
 
@@ -108,6 +110,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (UserSession.Role != "Adminisztrator")
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
         await AdatokBetoltese();
     }
 
@@ -123,7 +131,6 @@
         sikeresUzenet = "";
         int valasztottTeremID = 0;
 
-        // Ha nem Mesterkulcs, akkor ellenőrizzük, hogy létezik-e a beírt terem
         if (!string.IsNullOrWhiteSpace(kivalasztottTerem) && kivalasztottTerem != "Mesterkulcs")
         {
             var terem = termek?.FirstOrDefault(t => t.Teremszam.Equals(kivalasztottTerem, StringComparison.OrdinalIgnoreCase));

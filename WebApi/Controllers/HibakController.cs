@@ -1,13 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-using WebApi.Data; // Ellenőrizd, hogy ez a jó namespace a DbContext-hez!
+using WebApi.Data;
 using WebApi.Models;
 
 namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Portas")]
     public class HibakController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,8 +19,6 @@ namespace WebApi.Controllers
             _context = context;
         }
 
-        // GET: api/hibak/termek
-        // Lekéri a termeket a frontend lenyíló listájához
         [HttpGet("termek")]
         public async Task<IActionResult> GetTermek()
         {
@@ -29,8 +29,6 @@ namespace WebApi.Controllers
             return Ok(termek);
         }
 
-        // POST: api/hibak
-        // Új hibajegy mentése
         [HttpPost]
         public async Task<IActionResult> CreateHiba([FromBody] HibaCreateDto dto)
         {
@@ -38,7 +36,7 @@ namespace WebApi.Controllers
             {
                 Leiras = dto.Leiras,
                 TeremID = dto.TeremID,
-                PortasID = dto.PortasID, // Később ezt a bejelentkezett felhasználóból vesszük
+                PortasID = dto.PortasID,
                 LetrehozasDatuma = DateTime.UtcNow,
                 Allapot = false
             };
@@ -50,7 +48,6 @@ namespace WebApi.Controllers
         }
     }
 
-    // Segédosztály az adatok fogadásához
     public class HibaCreateDto
     {
         public string Leiras { get; set; } = string.Empty;

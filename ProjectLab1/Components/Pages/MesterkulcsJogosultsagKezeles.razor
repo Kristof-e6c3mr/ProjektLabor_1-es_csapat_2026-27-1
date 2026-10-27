@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Mesterkulcs Jogosultságok</PageTitle>
 
@@ -152,6 +154,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (UserSession.Role != "Adminisztrator")
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
         await AdatokBetoltese();
     }
 

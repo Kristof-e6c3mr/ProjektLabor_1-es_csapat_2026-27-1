@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -39,6 +40,33 @@ namespace WebApi
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
+            // --- JWT HITELESÍTÉS BEÁLLÍTÁSA ---
+            // A kulcsnak pontosan egyeznie kell a LoginControllerben lévővel!
+            var key = Encoding.ASCII.GetBytes("NagyonTitkosKulcsAmiLegalabb32KarakterHosszu!");
+
+            builder.Services.AddAuthentication(x =>
+            {
+                x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(x =>
+            {
+                x.RequireHttpsMetadata = false; // Docker hálózaton HTTP van
+                x.SaveToken = true;
+                x.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false, // Fejlesztéshez kikapcsolva
+                    ValidateAudience = false, // Fejlesztéshez kikapcsolva
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
+
+            // Autorizáció regisztrálása
+            builder.Services.AddAuthorization();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -52,6 +80,8 @@ namespace WebApi
                 app.UseHttpsRedirection();
             }
 
+            // --- A SORREND KRITIKUS: A UseAuthentication-nek a UseAuthorization ELŐTT kell lennie ---
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
@@ -66,87 +96,15 @@ namespace WebApi
                 WebApi.Data.DbInitializer.Initialize(context);
             }
 
-            // POST Endpoint a Login Requestre
-            //app.MapPost("/api/login", async (LoginModel request, AppDbContext db, IConfiguration config) =>
-            //{
-            //    var user = await db.Felhasznalok
-            //        .FirstOrDefaultAsync(f => f.Nev == request.Username || f.Email == request.Username);
+            // TÖRÖLTÜK a Minimal API MapGet("/api/login") részt. 
+            // A bejelentkezést mostantól a valós adatbázist használó LoginController kezeli!
 
-            //    if (user != null && user.Jelszo == request.Password)
-            //    {
-            //        // Create the security key
-            //        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!));
-            //        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-            //        // Define the payload
-            //        var claims = new[]
-            //        {
-            //            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            //            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            //            new Claim(ClaimTypes.NameIdentifier, user.Nev),
-            //            new Claim(ClaimTypes.Role, user.Szerepkor)
-            //        };
-
-            //        // 3. Assemble the token
-            //        var token = new JwtSecurityToken(
-            //            issuer: config["JwtSettings:Issuer"],
-            //            audience: config["JwtSettings:Audience"],
-            //            claims: claims,
-            //            expires: DateTime.UtcNow.AddMinutes(15),
-            //            signingCredentials: credentials);
-
-            //        // 4. Serialize to a string
-            //        var jwtString = new JwtSecurityTokenHandler().WriteToken(token);
-
-            //        return Results.Ok(new
-            //        {
-            //            Token = jwtString,
-            //            Role = user.Szerepkor
-            //        });
-            //    }
-
-            //    return Results.Unauthorized();
-            //})
-            //.WithName("Login");
-            app.MapGet("/api/login", (string? username, string? password, IConfiguration config) =>
-            {
-                // Bármilyen adatkérést elfogadunk most a leadás előtti teszthez, hogy ne adjon 400-at vagy 401-et
-                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!));
-                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-                var claims = new[]
-                {
-        new Claim(JwtRegisteredClaimNames.Sub, "1"),
-        new Claim(JwtRegisteredClaimNames.Email, username ?? "kiss.o@uni.hu"),
-        new Claim(ClaimTypes.NameIdentifier, "Dr. Kiss Oktató"),
-        new Claim(ClaimTypes.Role, "Oktato")
-    };
-
-                var token = new JwtSecurityToken(
-                    issuer: config["JwtSettings:Issuer"],
-                    audience: config["JwtSettings:Audience"],
-                    claims: claims,
-                    expires: DateTime.UtcNow.AddMinutes(15),
-                    signingCredentials: credentials);
-
-                var jwtString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                return Results.Ok(new
-                {
-                    Token = jwtString,
-                    Role = "Oktato",
-                    Username = "Dr. Kiss Oktató"
-                });
-            }).WithName("LoginGet");
-
-
-            // D pont: Szolgáltatás állapotjelző (Health Check) végpont
+            // Szolgáltatás állapotjelző (Health Check) végpont
             app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
 
             // Alapvető adat-lekérdező végpont (felhasználók listázása)
             app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
             {
-                // JAVÍTÁS: Projektálás a végtelen ciklus elkerülésére a séma generálásakor
                 return await db.Felhasznalok
                     .Select(f => new { f.Id, f.Nev, f.Email, f.Szerepkor })
                     .ToListAsync();

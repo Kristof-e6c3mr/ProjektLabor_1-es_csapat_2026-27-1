@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Adminisztrator")]
     public class KarbantartasiIdosavController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -37,7 +39,6 @@ namespace WebApi.Controllers
             return Ok(lista);
         }
 
-        // --- MÓDOSÍTVA: Ütközések lekérése (Foglalások + Karbantartások) ---
         [HttpPost("utkozesek")]
         public async Task<IActionResult> GetUtkozesek([FromBody] KarbantartasKeresDto dto)
         {
@@ -64,7 +65,7 @@ namespace WebApi.Controllers
             var utkozoKarbantartasok = await _context.KarbantartasiIdosavok
                 .Include(k => k.Terem)
                 .Where(k => k.TeremID == dto.TeremID &&
-                            k.KarbantartasID != dto.KarbantartasID && // Saját magát ne mutassa ütközésként
+                            k.KarbantartasID != dto.KarbantartasID &&
                             k.KezdoIdo < utcZaro &&
                             k.ZaroIdo > utcKezdo)
                 .Select(k => new
@@ -153,7 +154,7 @@ namespace WebApi.Controllers
 
     public class KarbantartasKeresDto
     {
-        public int KarbantartasID { get; set; } // Szükséges az önmaga kizárásához szerkesztéskor
+        public int KarbantartasID { get; set; }
         public int TeremID { get; set; }
         public DateTime KezdoIdo { get; set; }
         public DateTime ZaroIdo { get; set; }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Adminisztrator")]
     public class MesterkulcsJogosultsagController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -96,7 +98,6 @@ namespace WebApi.Controllers
             return Ok();
         }
 
-        // --- ÚJ: Módosítás végpont ---
         [HttpPut("{id}")]
         public async Task<IActionResult> Modositas(int id, [FromBody] UjMesterkulcsJogosultsagDto dto)
         {
@@ -113,7 +114,6 @@ namespace WebApi.Controllers
             var utcKezdet = dto.ErvenyessegKezdete.ToUniversalTime();
             var utcVeg = dto.ErvenyessegVege.ToUniversalTime();
 
-            // Vizsgálat: Kizárjuk saját magát a keresésből (m.JogosultsagID != id)
             bool vanMarJoga = await _context.MesterkulcsJogosultsagok.AnyAsync(m =>
                 m.JogosultsagID != id &&
                 m.FelhasznaloID == dto.FelhasznaloID &&

@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Karbantartások kezelése</PageTitle>
 
@@ -82,7 +84,6 @@
                 A rögzítéshez ezeket mind törölnöd vagy áthelyezned kell!
             </div>
 
-            <!-- Ütköző foglalások táblázata -->
             @if (utkozesEredmeny.Foglalasok.Any())
             {
                 <h6 class="mt-3 fw-bold">Ütköző Foglalások</h6>
@@ -128,7 +129,6 @@
                 </table>
             }
 
-            <!-- Ütköző Karbantartások táblázata -->
             @if (utkozesEredmeny.Karbantartasok.Any())
             {
                 <h6 class="mt-3 fw-bold text-danger">Ütköző (másik) Karbantartások</h6>
@@ -243,7 +243,6 @@
     private List<KarbantartasDto>? letezoKarbantartasok;
     private UtkozesEredmenyDto? utkozesEredmeny;
     
-    // Fő űrlap változók
     private int szerkesztettKarbantartasId = 0;
     private string kivalasztottTeremszam = "";
     private int rogzitendoTeremId = 0;
@@ -256,7 +255,6 @@
     private string hibaUzenet = "";
     private string sikeresUzenet = "";
 
-    // Foglalás áthelyezéshez használt változók (max 1 napos)
     private int szerkesztettFoglalasId = 0;
     private string ujTeremszam = "";
     private DateTime ujDatum;
@@ -264,7 +262,6 @@
     private TimeOnly ujZaroId;
     private TimeSpan eredetiFoglalasIdotartam;
 
-    // Ütköző Karbantartás áthelyezéshez (több napos)
     private int szerkesztettUtkozoKarbId = 0;
     private string ujKarbTeremszam = "";
     private DateTime ujKarbKezdo;
@@ -273,6 +270,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (UserSession.Role != "Adminisztrator")
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
         termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
         karbantartasHossz = zaroIdo - kezdoIdo;
         await KarbantartasokBetoltese();
@@ -364,13 +367,11 @@
             if (response.IsSuccessStatusCode)
             {
                 await KarbantartasokBetoltese();
-                if (ellenorzott) await Ellenorzes(); // Frissíti a fenti ütközés listát is ha onnan töröltünk
+                if (ellenorzott) await Ellenorzes();
                 if (szerkesztettKarbantartasId == id) MentesMegsem();
             }
         }
     }
-
-    // --- Foglalások ütközéskezelés (egynapos) ---
 
     private async Task FoglalasTorles(int id)
     {
@@ -413,8 +414,6 @@
         else { hibaUzenet = await response.Content.ReadAsStringAsync(); }
     }
 
-    // --- Karbantartások ütközéskezelése (többnapos) ---
-
     private void UtkozoKarbSzerkesztesMegnyitasa(UtkozoKarbantartasDto karbantartas)
     {
         szerkesztettUtkozoKarbId = karbantartas.KarbantartasID;
@@ -453,12 +452,11 @@
         {
             szerkesztettUtkozoKarbId = 0;
             await Ellenorzes(); 
-            await KarbantartasokBetoltese(); // Alsó listát is frissíti
+            await KarbantartasokBetoltese();
         }
         else { hibaUzenet = await response.Content.ReadAsStringAsync(); }
     }
 
-    // --- DTO Osztályok ---
     public class TeremDto { public int TeremID { get; set; } public string Teremszam { get; set; } = ""; }
     
     public class UtkozesEredmenyDto

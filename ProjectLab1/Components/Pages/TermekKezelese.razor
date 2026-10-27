@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Termek kezelése</PageTitle>
 
@@ -73,6 +75,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 1. Kliens oldali védelem: Ha nem Adminisztrátor, kivágjuk az oldalról
+        if (UserSession.Role != "Adminisztrator")
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
         await TermekBetoltese();
     }
 

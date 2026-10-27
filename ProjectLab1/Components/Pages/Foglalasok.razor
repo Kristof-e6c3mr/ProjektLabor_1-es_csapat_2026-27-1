@@ -1,10 +1,10 @@
 ﻿@page "/foglalasok"
 @page "/foglalas"
 @rendermode InteractiveServer
-@using System.Security.Claims
-@using Microsoft.AspNetCore.Components.Authorization
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Saját foglalásaim</PageTitle>
 
@@ -109,9 +109,6 @@
 </div>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthState { get; set; }
-
     private int bejelentkezettOktatoId = 0; 
 
     private List<FoglalasListaDto>? foglalasok;
@@ -127,29 +124,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState != null)
+        if (UserSession.Role != "Oktato" && UserSession.Role != "Adminisztrator")
         {
-            var authState = await AuthState;
-            var user = authState.User;
-
-            if (user.Identity is not null && user.Identity.IsAuthenticated)
-            {
-                var idClaim = user.FindFirst("sub");
-                
-                if (idClaim != null && int.TryParse(idClaim.Value, out int parseId))
-                {
-                    bejelentkezettOktatoId = parseId;
-                }
-            }
+            Navigation.NavigateTo("/not-found");
+            return;
         }
+
+        bejelentkezettOktatoId = UserSession.UserId;
 
         if (bejelentkezettOktatoId > 0)
         {
             await AdatokBetoltese();
-        }
-        else
-        {
-            hibaUzenet = "Hiba: Nem sikerült azonosítani a bejelentkezett oktatót!";
         }
     }
 

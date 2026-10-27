@@ -1,43 +1,73 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
-//using WebApi.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+using WebApi.Data;
 
 namespace WebApi.Controllers
 {
-    //[Route("api/login")]
-    //[ApiController]
-    //public class LoginController : ControllerBase
-    //{
-    //    private readonly AppDbContext _context;
+    [Route("api/[controller]")]
+    [ApiController]
+    public class LoginController : ControllerBase
+    {
+        private readonly AppDbContext _context;
 
-    //    public LoginController(AppDbContext context)
-    //    {
-    //        _context = context;
-    //    }
+        public LoginController(AppDbContext context)
+        {
+            _context = context;
+        }
 
-    //    [HttpGet] // <-- ÁTÍRTuk GET-RE, ÍGY NINCS ANTIFORGERY ELLENŐRZÉS SE STEM
-    //    public async Task<IActionResult> Login([FromQuery] string username, [FromQuery] string password)
-    //    {
-    //        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-    //        {
-    //            return BadRequest("A felhasználónév és a jelszó megadása kötelező.");
-    //        }
+        [HttpPost]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest("A felhasználónév és a jelszó megadása kötelező.");
+            }
 
-    //        var user = await _context.Felhasznalok
-    //            .FirstOrDefaultAsync(u => u.Email == username);
+            // Megkeressük a felhasználót email vagy név alapján
+            var user = await _context.Felhasznalok
+                .FirstOrDefaultAsync(u => u.Email == request.Username || u.Nev == request.Username);
 
-    //        if (user == null || user.Jelszo != password)
-    //        {
-    //            return Unauthorized("Hibás felhasználónév vagy jelszó.");
-    //        }
+            if (user == null || user.Jelszo != request.Password)
+            {
+                return Unauthorized("Hibás felhasználónév vagy jelszó.");
+            }
 
-    //        return Ok(new
-    //        {
-    //            Token = "dummy-jwt-token",
-    //            Role = user.Szerepkor,
-    //            Username = user.Nev
-    //        });
-    //    }
-    //}
+            var key = Encoding.ASCII.GetBytes("NagyonTitkosKulcsAmiLegalabb32KarakterHosszu!");
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Nev),
+                    new Claim(ClaimTypes.Role, user.Szerepkor)
+                }),
+                Expires = DateTime.UtcNow.AddHours(8),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            var tokenString = tokenHandler.WriteToken(token);
+
+            return Ok(new
+            {
+                id = user.Id,
+                username = user.Nev,
+                role = user.Szerepkor,
+                token = tokenString
+            });
+        }
+    }
+
+    public class LoginRequest
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
 }

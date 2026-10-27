@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize] // Bárki, aki be van jelentkezve, olvashatja a termeket
     public class TermekController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -25,6 +27,7 @@ namespace WebApi.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Adminisztrator")] // Csak admin rögzíthet
         public async Task<IActionResult> CreateTerem([FromBody] Terem terem)
         {
             if (terem.Ferohely < 0)
@@ -44,6 +47,7 @@ namespace WebApi.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Adminisztrator")] // Csak admin törölhet
         public async Task<IActionResult> DeleteTerem(int id)
         {
             var terem = await _context.Termek.FindAsync(id);

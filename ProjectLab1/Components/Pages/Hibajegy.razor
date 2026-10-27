@@ -1,6 +1,8 @@
 ﻿@page "/hibajegy"
 @rendermode InteractiveServer
 @inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <PageTitle>Hibajegy felvétele</PageTitle>
 
@@ -47,13 +49,19 @@
 
 @code {
     private List<TeremDto>? termek;
-    private HibaCreateDto ujHiba = new HibaCreateDto { PortasID = 1 }; // Fix PortasID, amíg nincs beállítva a JWT tokenes auth
+    private HibaCreateDto ujHiba = new HibaCreateDto();
     private string uzenet = "";
     private bool sikeres = false;
 
     protected override async Task OnInitializedAsync()
     {
-        // Termek lekérése az API-ból a lenyíló listához
+        if (UserSession.Role != "Portas")
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
+        ujHiba.PortasID = UserSession.UserId;
         termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/hibak/termek");
     }
 
@@ -72,7 +80,6 @@
         {
             sikeres = true;
             uzenet = "Hibajegy sikeresen rögzítve az adatbázisban!";
-            // Űrlap alaphelyzetbe állítása
             ujHiba.Leiras = "";
             ujHiba.TeremID = 0;
         }

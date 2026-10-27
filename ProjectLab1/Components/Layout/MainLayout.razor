@@ -1,27 +1,5 @@
 ﻿@inherits LayoutComponentBase
-<!--
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            Body --itt van egy kukacjel a Body előtt
-        </article>
-    </main>
-</div>
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
--->
+@implements IDisposable
 
 @inject NavigationManager Navigation
 @inject ProjectLab1.Services.UserSessionService UserSession
@@ -42,7 +20,6 @@
                     <span class="fw-bold">Bejelentkezve:</span> @UserSession.Username
                     <span class="badge bg-info text-dark ms-2">@UserSession.Role</span>
                 </div>
-                <!--<button class="btn btn-outline-danger btn-sm" @onclick="Kijelentkezes">Kijelentkezés</button>-->
                 <a href="/login" class="btn btn-outline-danger btn-sm text-decoration-none" @onclick="Kijelentkezes">
                     Kijelentkezés
                 </a>
@@ -66,17 +43,25 @@
 
     protected override void OnInitialized()
     {
-        UserSession.OnChange += StateHasChanged;
+        // JAVÍTVA: Saját eseménykezelőt kötünk be, ami kezeli a szálakat
+        UserSession.OnChange += HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged()
+    {
+        // JAVÍTVA: InvokeAsync-be csomagoljuk a felületfrissítést, így a UI szálon fut le
+        InvokeAsync(StateHasChanged);
     }
 
     private void Kijelentkezes()
     {
         UserSession.Logout();
-        Navigation.NavigateTo("/login", forceLoad: true);
+        Navigation.NavigateTo("/login");
     }
 
     public void Dispose()
     {
-        UserSession.OnChange -= StateHasChanged;
+        // JAVÍTVA: Leiratkozás az új metódusról
+        UserSession.OnChange -= HandleSessionChanged;
     }
 }
