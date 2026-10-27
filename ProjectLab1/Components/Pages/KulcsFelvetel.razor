@@ -1,160 +1,237 @@
-﻿@page "/kulcsfelvetel"
+﻿@page "/kulcskiadas"
 @rendermode InteractiveServer
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @inject HttpClient Http
+@inject IJSRuntime JS
 
-<PageTitle>Kulcsfelvétel és leadás</PageTitle>
+<PageTitle>Kulcs Kiadása</PageTitle>
 
 <div class="container mt-4">
-    <h3>Kulcsok kiadása és visszavétele</h3>
+    <h3>Kulcs kiadása</h3>
     <hr />
 
-    @if (!string.IsNullOrEmpty(hibaUzenet))
+    @if (bejelentkezettPortasId == 0)
     {
-        <div class="alert alert-danger">@hibaUzenet</div>
-    }
-    @if (!string.IsNullOrEmpty(sikeresUzenet))
-    {
-        <div class="alert alert-success">@sikeresUzenet</div>
-    }
-
-    @if (kulcsok == null || oktatok == null)
-    {
-        <p><em>Adatok betöltése...</em></p>
+        <div class="alert alert-warning">
+            Azonosítás folyamatban... Kérlek jelentkezz be portásként!
+            <br/><br/>
+            <b>Fejlesztői infó (Debug):</b><br/>
+            @if (debugUser != null && debugUser.Identity?.IsAuthenticated == true)
+            {
+                <span>Bejelentkezve mint: @debugUser.Identity.Name. Claim-ek: </span>
+                <ul>
+                    @foreach (var claim in debugUser.Claims)
+                    {
+                        <li><strong>@claim.Type</strong> : @claim.Value</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <span>A Blazor szerint jelenleg nincs bejelentkezett felhasználó. (A JWT token valószínűleg nem lett átadva a Blazor hitelesítési rendszerének).</span>
+            }
+        </div>
     }
     else
     {
-        <table class="table table-striped align-middle">
-            <thead>
-                <tr>
-                    <th>Terem / Típus</th>
-                    <th>Állapot</th>
-                    <th>Oktató azonosítása (Kiadáshoz)</th>
-                    <th>Művelet</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var kulcs in kulcsok)
+        <!-- 1. LÉPÉS: PIN Kód bekérése -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Oktató azonosítása</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Oktató PIN kódja</label>
+                        <input type="password" class="form-control text-center fs-4" @bind="pinKod" placeholder="****" maxlength="4" />
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100 fs-5" @onclick="OktatoAzonositasa">
+                            <span class="bi bi-search"></span> Keresés
+                        </button>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(pinHiba))
                 {
-                    <tr>
-                        <td>
-                            <span class="fw-bold">@(kulcs.MesterkulcsE ? "Mesterkulcs" : kulcs.Teremszam)</span>
-                        </td>
-                        <td>
-                            @if (kulcs.KiadvaE)
-                            {
-                                <span class="badge bg-warning text-dark">Kiadva</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">Portán</span>
-                            }
-                        </td>
-                        <td>
-                            @if (!kulcs.KiadvaE)
-                            {
-                                <select class="form-select form-select-sm" @bind="kulcs.KivalasztottOktatoID">
-                                    <option value="0">-- Válassz oktatót --</option>
-                                    @foreach (var oktato in oktatok)
-                                    {
-                                        <option value="@oktato.Id">@oktato.Nev</option>
-                                    }
-                                </select>
-                            }
-                            else
-                            {
-                                <span class="text-muted">N/A</span>
-                            }
-                        </td>
-                        <td>
-                            @if (!kulcs.KiadvaE)
-                            {
-                                <button class="btn btn-primary btn-sm" @onclick="() => KulcsKiad(kulcs)">Kiadás</button>
-                            }
-                            else
-                            {
-                                <button class="btn btn-secondary btn-sm" @onclick="() => KulcsVisszavesz(kulcs.KulcsID)">Visszavétel</button>
-                            }
-                        </td>
-                    </tr>
+                    <div class="text-danger mt-2">@pinHiba</div>
                 }
-            </tbody>
-        </table>
+            </div>
+        </div>
+
+        <!-- 2. LÉPÉS: Választható kulcsok listázása -->
+        @if (azonositottOktatoId > 0)
+        {
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Kiadható kulcsok - @azonositottOktatoNev</h5>
+                    <button class="btn btn-sm btn-light" @onclick="Reset">Mégsem (Új azonosítás)</button>
+                </div>
+                <div class="card-body">
+                    @if (kiadhatoKulcsok == null)
+                    {
+                        <p><em>Kulcsok betöltése...</em></p>
+                    }
+                    else if (!kiadhatoKulcsok.Any())
+                    {
+                        <div class="alert alert-info">Nincs kiadható kulcs ehhez az oktatóhoz (nincs mai foglalása vagy érvényes mesterkulcsa).</div>
+                    }
+                    else
+                    {
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Kulcs / Terem</th>
+                                    <th>Típus</th>
+                                    <th>Időpont</th>
+                                    <th>Művelet</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var k in kiadhatoKulcsok)
+                                {
+                                    <tr>
+                                        <td class="fw-bold fs-5">@k.Megnevezes</td>
+                                        <td><span class="badge @(k.Tipus == "Mesterkulcs" ? "bg-warning text-dark" : "bg-info")">@k.Tipus</span></td>
+                                        <td>@k.Idopont</td>
+                                        <td>
+                                            <button class="btn btn-success" @onclick="() => KulcsKiadasa(k.KulcsID)">
+                                                Kulcs kiadása
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        }
+    }
+    
+    @if (!string.IsNullOrEmpty(rendszerUzenet))
+    {
+        <div class="alert alert-success mt-3 fs-5">@rendszerUzenet</div>
     }
 </div>
 
 @code {
-    private List<KulcsViewModel>? kulcsok;
-    private List<OktatoDto>? oktatok;
-    private string hibaUzenet = "";
-    private string sikeresUzenet = "";
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private int bejelentkezettPortasId = 0;
+    private System.Security.Claims.ClaimsPrincipal? debugUser;
+
+    // Űrlap változók
+    private string pinKod = "";
+    private string pinHiba = "";
+    private string rendszerUzenet = "";
+
+    // Oktató adatai
+    private int azonositottOktatoId = 0;
+    private string azonositottOktatoNev = "";
+    private List<KiadhatoKulcsDto>? kiadhatoKulcsok;
 
     protected override async Task OnInitializedAsync()
     {
-        await AdatokBetoltese();
-    }
-
-    private async Task AdatokBetoltese()
-    {
-        oktatok = await Http.GetFromJsonAsync<List<OktatoDto>>("api/kulcsmozgas/oktatok");
-        // Újrahasznosítjuk a meglévő Kulcsok API-t a listázáshoz
-        kulcsok = await Http.GetFromJsonAsync<List<KulcsViewModel>>("api/kulcsok");
-    }
-
-    private async Task KulcsKiad(KulcsViewModel kulcs)
-    {
-        hibaUzenet = "";
-        sikeresUzenet = "";
-
-        if (kulcs.KivalasztottOktatoID == 0)
+        if (AuthState != null)
         {
-            hibaUzenet = "Kérlek válaszd ki az oktatót a kulcs kiadásához!";
+            var authState = await AuthState;
+            debugUser = authState.User; // Eltesszük a debug felületnek
+
+            if (debugUser.Identity is not null && debugUser.Identity.IsAuthenticated)
+            {
+                var idClaim = debugUser.FindFirst("sub");
+                if (idClaim != null && int.TryParse(idClaim.Value, out int parseId))
+                {
+                    bejelentkezettPortasId = parseId;
+                }
+            }
+        }
+    }
+
+    private async Task OktatoAzonositasa()
+    {
+        pinHiba = "";
+        rendszerUzenet = "";
+        
+        if (string.IsNullOrWhiteSpace(pinKod))
+        {
+            pinHiba = "Kérlek add meg a PIN kódot!";
             return;
         }
 
-        var dto = new { KulcsID = kulcs.KulcsID, OktatoID = kulcs.KivalasztottOktatoID };
-        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/kiadas", dto);
-
+        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/azonositas", pinKod);
         if (response.IsSuccessStatusCode)
         {
-            sikeresUzenet = "Kulcs sikeresen kiadva!";
-            await AdatokBetoltese();
+            var result = await response.Content.ReadFromJsonAsync<OktatoDto>();
+            if (result != null)
+            {
+                azonositottOktatoId = result.Id;
+                azonositottOktatoNev = result.Nev;
+                pinKod = ""; // Biztonsági okokból töröljük a mezőt
+                await KulcsokBetoltese();
+            }
         }
         else
         {
-            hibaUzenet = await response.Content.ReadAsStringAsync();
+            pinHiba = "Érvénytelen PIN kód vagy a felhasználó nem található.";
         }
     }
 
-    private async Task KulcsVisszavesz(int kulcsId)
+    private async Task KulcsokBetoltese()
     {
-        hibaUzenet = "";
-        sikeresUzenet = "";
+        kiadhatoKulcsok = await Http.GetFromJsonAsync<List<KiadhatoKulcsDto>>($"api/kulcsmozgas/kiadhato-kulcsok/{azonositottOktatoId}");
+    }
 
-        var response = await Http.PostAsync($"api/kulcsmozgas/visszavetel/{kulcsId}", null);
+    private async Task KulcsKiadasa(int kulcsId)
+    {
+        var keres = new KulcsKiadasKeresDto
+        {
+            KulcsID = kulcsId,
+            OktatoID = azonositottOktatoId,
+            PortasID = bejelentkezettPortasId
+        };
 
+        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/kiadas", keres);
+        
         if (response.IsSuccessStatusCode)
         {
-            sikeresUzenet = "Kulcs sikeresen visszavéve a portára!";
-            await AdatokBetoltese();
+            rendszerUzenet = "Kulcs sikeresen kiadva!";
+            Reset(); // Visszaállítjuk az űrlapot a következő oktatóhoz
         }
         else
         {
-            hibaUzenet = "Hiba történt a visszavétel során.";
+            pinHiba = "Hiba történt a kiadás során!";
         }
+    }
+
+    private void Reset()
+    {
+        azonositottOktatoId = 0;
+        azonositottOktatoNev = "";
+        kiadhatoKulcsok = null;
+        pinKod = "";
     }
 
     public class OktatoDto
     {
         public int Id { get; set; }
-        public string Nev { get; set; } = string.Empty;
+        public string Nev { get; set; } = "";
     }
 
-    public class KulcsViewModel
+    public class KiadhatoKulcsDto
     {
         public int KulcsID { get; set; }
-        public bool MesterkulcsE { get; set; }
-        public bool KiadvaE { get; set; }
-        public string Teremszam { get; set; } = string.Empty;
-        public int KivalasztottOktatoID { get; set; } // Kliens oldali segédmező
+        public string Megnevezes { get; set; } = "";
+        public string Tipus { get; set; } = "";
+        public string Idopont { get; set; } = "";
+    }
+
+    public class KulcsKiadasKeresDto
+    {
+        public int KulcsID { get; set; }
+        public int OktatoID { get; set; }
+        public int PortasID { get; set; }
     }
 }

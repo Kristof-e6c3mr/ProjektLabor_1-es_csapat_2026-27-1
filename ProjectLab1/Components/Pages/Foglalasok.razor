@@ -1,0 +1,251 @@
+﻿@page "/foglalasok"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Saját foglalásaim</PageTitle>
+
+<div class="container mt-4">
+    <h3>Saját teremfoglalásaim</h3>
+    <hr />
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Új foglalás rögzítése</h5>
+            <div class="row g-3 align-items-end">
+                
+                <div class="col-md-2">
+                    <label class="form-label">Terem (keresés)</label>
+                    <input list="termek-list" class="form-control" @bind="kivalasztottTeremszam" placeholder="Gépelj..." />
+                    <datalist id="termek-list">
+                        @if (termek != null)
+                        {
+                            @foreach (var t in termek)
+                            {
+                                <option value="@t.Teremszam"></option>
+                            }
+                        }
+                    </datalist>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Dátum</label>
+                    <input type="date" class="form-control" @bind="kivalasztottDatum" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Kezdés</label>
+                    <input type="time" class="form-control" @bind="kezdoIdo" @bind:after="KezdoIdoValtozott" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Befejezés</label>
+                    <input type="time" class="form-control" @bind="zaroIdo" />
+                </div>
+
+                <div class="col-md-3">
+                    <button class="btn btn-success w-100" @onclick="FoglalasMentes">Lefoglal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger">@hibaUzenet</div>
+    }
+    @if (!string.IsNullOrEmpty(sikeresUzenet))
+    {
+        <div class="alert alert-success">@sikeresUzenet</div>
+    }
+
+    @if (bejelentkezettOktatoId == 0)
+    {
+        <p><em>Azonosítás folyamatban...</em></p>
+    }
+    else if (foglalasok == null)
+    {
+        <p><em>Betöltés...</em></p>
+    }
+    else if (!foglalasok.Any())
+    {
+        <p>Nincsenek rögzített foglalásaid.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Terem</th>
+                    <th>Dátum</th>
+                    <th>Kezdés</th>
+                    <th>Befejezés</th>
+                    <th>Állapot</th>
+                    <th>Művelet</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in foglalasok)
+                {
+                    <tr>
+                        <td class="fw-bold">@f.Teremszam</td>
+                        <td>@f.KezdoIdo.ToString("yyyy. MM. dd.")</td>
+                        <td>@f.KezdoIdo.ToString("HH:mm")</td>
+                        <td>@f.ZaroIdo.ToString("HH:mm")</td>
+                        <td>
+                            <span class="badge bg-success">@f.Allapot</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => FoglalasTorles(f.FoglalasID)">Törlés</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private int bejelentkezettOktatoId = 0; 
+
+    private List<FoglalasListaDto>? foglalasok;
+    private List<TeremDto>? termek;
+    
+    private string kivalasztottTeremszam = "";
+    private DateTime kivalasztottDatum = DateTime.Today;
+    private TimeOnly kezdoIdo = new TimeOnly(8, 0);
+    private TimeOnly zaroIdo = new TimeOnly(9, 30);
+
+    private string hibaUzenet = "";
+    private string sikeresUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState != null)
+        {
+            var authState = await AuthState;
+            var user = authState.User;
+
+            if (user.Identity is not null && user.Identity.IsAuthenticated)
+            {
+                var idClaim = user.FindFirst("sub");
+                
+                if (idClaim != null && int.TryParse(idClaim.Value, out int parseId))
+                {
+                    bejelentkezettOktatoId = parseId;
+                }
+            }
+        }
+
+        if (bejelentkezettOktatoId > 0)
+        {
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = "Hiba: Nem sikerült azonosítani a bejelentkezett oktatót!";
+        }
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
+        foglalasok = await Http.GetFromJsonAsync<List<FoglalasListaDto>>($"api/foglalasok/sajat/{bejelentkezettOktatoId}");
+    }
+
+    private void KezdoIdoValtozott()
+    {
+        zaroIdo = kezdoIdo.AddMinutes(90);
+    }
+
+    private async Task FoglalasMentes()
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+
+        if (bejelentkezettOktatoId == 0)
+        {
+            hibaUzenet = "Nem vagy bejelentkezve!";
+            return;
+        }
+
+        var kivalasztottTerem = termek?.FirstOrDefault(t => t.Teremszam.Equals(kivalasztottTeremszam, StringComparison.OrdinalIgnoreCase));
+        
+        if (kivalasztottTerem == null)
+        {
+            hibaUzenet = "Érvénytelen teremszám! Kérlek válassz a listából.";
+            return;
+        }
+
+        var teljesKezdet = kivalasztottDatum.Date.Add(kezdoIdo.ToTimeSpan());
+        var teljesVeg = kivalasztottDatum.Date.Add(zaroIdo.ToTimeSpan());
+
+        if (teljesKezdet >= teljesVeg)
+        {
+            hibaUzenet = "A foglalás vége nem lehet korábban, mint a kezdete!";
+            return;
+        }
+
+        var ujFoglalas = new UjFoglalasDto
+        {
+            TeremID = kivalasztottTerem.TeremID,
+            OktatoID = bejelentkezettOktatoId,
+            KezdoIdo = teljesKezdet,
+            ZaroIdo = teljesVeg
+        };
+
+        var response = await Http.PostAsJsonAsync("api/foglalasok", ujFoglalas);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = "Foglalás sikeresen rögzítve!";
+            kivalasztottTeremszam = ""; 
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task FoglalasTorles(int id)
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+        
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a saját foglalásodat?");
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/foglalasok/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                sikeresUzenet = "Foglalás törölve.";
+                await AdatokBetoltese();
+            }
+        }
+    }
+
+    public class FoglalasListaDto
+    {
+        public int FoglalasID { get; set; }
+        public string Teremszam { get; set; } = "";
+        public DateTime KezdoIdo { get; set; }
+        public DateTime ZaroIdo { get; set; }
+        public string Allapot { get; set; } = "";
+    }
+
+    public class UjFoglalasDto
+    {
+        public int TeremID { get; set; }
+        public int OktatoID { get; set; }
+        public DateTime KezdoIdo { get; set; }
+        public DateTime ZaroIdo { get; set; }
+    }
+
+    public class TeremDto { public int TeremID { get; set; } public string Teremszam { get; set; } = ""; }
+}
