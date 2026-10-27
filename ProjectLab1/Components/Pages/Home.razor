@@ -1,7 +1,139 @@
-﻿@page "/"
+﻿<!--
+@page "/"
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
+-->
+@page "/"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Kezdőlap</PageTitle>
+
+@if (!UserSession.IsLoggedIn)
+{
+    <p><em>Átirányítás a bejelentkezéshez...</em></p>
+}
+else
+{
+    <div class="container mt-3">
+        <div class="p-4 mb-4 bg-light rounded-3 border shadow-sm">
+            <div class="container-fluid py-2">
+                <h1 class="display-6 fw-bold text-primary">Üdvözöljük, @UserSession.Username!</h1>
+                <p class="col-md-10 fs-5 text-muted">
+                    Sikeresen bejelentkezett a rendszerbe mint <strong>@GetRoleDisplayName(UserSession.Role)</strong>.
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            @if (UserSession.Role == "Oktato")
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 border-primary shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">Terem- és Idősáv-foglalás</h5>
+                            <p class="card-text">Lefoglalhatja a kívánt termet a megfelelő időpontra, valamint megtekintheti és törölheti saját foglalásait.</p>
+                            <a href="foglalasok" class="btn btn-primary">Ugrás a foglaláshoz</a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (UserSession.Role == "Portas")
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 border-success shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">Kulcsok Kiadása / Leadása</h5>
+                            <p class="card-text">Oktató azonosítása PIN kód alapján, valamint a teremkulcsok és mesterkulcsok kiadása/leadása.</p>
+                            <a href="kulcskiadas" class="btn btn-success">Kulcskezelés</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-warning shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning text-dark">Hibajegy Felvétele</h5>
+                            <p class="card-text">Jelentse be a termekben vagy berendezésekben tapasztalt meghibásodásokat.</p>
+                            <a href="hibajegy" class="btn btn-warning">Új hibajegy</a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (UserSession.Role == "Adminisztrator")
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 border-info shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">Teremtörzs Kezelése</h5>
+                            <p class="card-text">Új termek rögzítése, meglévők módosítása és törlése.</p>
+                            <a href="termek" class="btn btn-info text-white">Termek kezelése</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-info shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">Kulcstörzs Kezelése</h5>
+                            <p class="card-text">Sima és mesterkulcsok adatainak nyilvántartása és beállítása.</p>
+                            <a href="kulcsok" class="btn btn-info text-white">Kulcsok kezelése</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-primary shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">Mesterkulcs Jogosultságok</h5>
+                            <p class="card-text">Mesterkulcs használati jogosultságok kiadása, módosítása és visszavonása a felhasználók számára.</p>
+                            <a href="mesterkulcsjogosultsag" class="btn btn-primary">Jogosultságok beállítása</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-danger shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">Karbantartási Idősáv Kijelölése</h5>
+                            <p class="card-text">Tervezett karbantartások rögzítése és az esetleges foglalási ütközések kezelése.</p>
+                            <a href="karbantartas" class="btn btn-danger">Karbantartások kezelése</a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (UserSession.Role == "UzemeltetesiIgazgato")
+            {
+                <div class="col-md-6">
+                    <div class="card h-100 border-dark shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Riportok & Audit Logok</h5>
+                            <p class="card-text">Teremkihasználtsági statisztikák, riportok generálása és biztonsági eseménynaplók elemzése.</p>
+                            <a href="not-found" class="btn btn-dark">Riportok megtekintése</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!UserSession.IsLoggedIn)
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    private string GetRoleDisplayName(string? role) => role switch
+    {
+        "Oktato" => "Oktató / Igénylő",
+        "Portas" => "Portás / Operátor",
+        "Adminisztrator" => "Adminisztrátor",
+        "UzemeltetesiIgazgato" => "Üzemeltetési Igazgató",
+        _ => "Felhasználó"
+    };
+}

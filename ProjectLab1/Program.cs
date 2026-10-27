@@ -1,13 +1,18 @@
 using ProjectLab1.Components;
+using ProjectLab1.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddScoped(sp => new HttpClient{
-    BaseAddress = new Uri("http://webapi:8080/")
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri("http://localhost:8080/") // Vagy http://webapi:8080/
 });
+
+// Session kezeléshez ez kell:
+builder.Services.AddSingleton<UserSessionService>();
 
 var app = builder.Build();
 
