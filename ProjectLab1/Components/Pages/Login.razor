@@ -1,6 +1,9 @@
 ﻿@page "/login" 
+@using ProjectLab1.Auth
 @inject HttpClient Http
 @inject ILogger<Login> Logger
+@inject CustomAuthStateProvider AuthProvider
+@inject NavigationManager NavManager
 
 <h3>Login Page</h3>
 <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm">
@@ -39,27 +42,40 @@ else if (loginFailed)
 
 @code {
 
-    [SupplyParameterFromForm]
-    private LoginModel loginModel { get; set; } = new();
+	[SupplyParameterFromForm]
+	private LoginModel loginModel { get; set; } = new();
 
-    private LoginResponse? apiResponse;
-    private bool loginFailed;
+	private LoginResponse? apiResponse;
+	private bool loginFailed;
 
-    private async Task HandleLogin()
-    {
-        
-        var response = await Http.PostAsJsonAsync("api/login", loginModel);
-        Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
+	private async Task HandleLogin()
+	{
+		loginFailed = false;
 
-        loginFailed = false;
-        apiResponse = null;
+		Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
+		var response = await Http.PostAsJsonAsync("api/login", loginModel);
 
-        if (response.IsSuccessStatusCode)
-        {
-            // Deserialize the JSON Payload
-            apiResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
-            Logger.LogInformation("Login success! Role assigned: {Role}", apiResponse?.Role);
-        }
+		apiResponse = null;
+
+		if (response.IsSuccessStatusCode)
+		{
+			// Deserialize the JSON Payload
+			apiResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+
+			//if There is a response and the token isnot empty
+			if (apiResponse != null && !string.IsNullOrEmpty(apiResponse.Token))
+			{
+				AuthProvider.MarkUserAsAuthenticated(apiResponse.Token);
+
+				Http.DefaultRequestHeaders.Authorization =
+					new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiResponse.Token);
+
+				Logger.LogInformation("Login success! Role assigned: {Role}", apiResponse?.Role);
+
+				//redirect to somewhere
+				NavManager.NavigateTo("/");
+			}
+		}
         else
         {
             loginFailed = true;

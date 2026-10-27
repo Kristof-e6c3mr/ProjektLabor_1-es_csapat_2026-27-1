@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Components.Authorization;
+using ProjectLab1.Auth;
 using ProjectLab1.Components;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +11,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped(sp => new HttpClient{
     BaseAddress = new Uri("http://webapi:8080/")
 });
+
+// Add Service for Authentication
+builder.Services.AddScoped<CustomAuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
 
 var app = builder.Build();
 
