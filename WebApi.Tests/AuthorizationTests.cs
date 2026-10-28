@@ -68,11 +68,6 @@ namespace WebApi.Tests
         private static async Task<string> BejelentkezesAsync(HttpClient client, string username, string password)
         {
             var loginResponse = await client.PostAsJsonAsync("/api/login", new { Username = username, Password = password });
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                var errorBody = await loginResponse.Content.ReadAsStringAsync();
-                throw new Exception($"Sikertelen belépés! Státuszkód: {(int)loginResponse.StatusCode} ({loginResponse.StatusCode}). Szerver válasza: {errorBody}");
-            }
 
             loginResponse.EnsureSuccessStatusCode();
             var result = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
