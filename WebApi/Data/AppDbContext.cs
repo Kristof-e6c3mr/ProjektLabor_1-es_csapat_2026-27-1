@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.Reflection.Emit;
+﻿using System.Reflection.Emit;
+
+using Microsoft.EntityFrameworkCore;
+
 using WebApi.Models;
 
 namespace WebApi.Data
@@ -10,15 +12,15 @@ namespace WebApi.Data
         {
         }
 
-        public DbSet<Felhasznalo> Felhasznalok { get; set; }
-        public DbSet<Terem> Termek { get; set; }
-        public DbSet<Kulcs> Kulcsok { get; set; }
-        public DbSet<KulcsMozgas> KulcsMozgasok { get; set; }
-        public DbSet<Foglalas> Foglalasok { get; set; }
-        public DbSet<KarbantartasiIdosav> KarbantartasiIdosavok { get; set; }
-        public DbSet<AuditLog> AuditLogok { get; set; }
-        public DbSet<Hiba> Hibak { get; set; }
-        public DbSet<MesterkulcsJogosultsag> MesterkulcsJogosultsagok { get; set; }
+        public DbSet<Felhasznalo> Felhasznalok { get; set; } = null!;
+        public DbSet<Terem> Termek { get; set; } = null!;
+        public DbSet<Kulcs> Kulcsok { get; set; } = null!;
+        public DbSet<KulcsMozgas> KulcsMozgasok { get; set; } = null!;
+        public DbSet<Foglalas> Foglalasok { get; set; } = null!;
+        public DbSet<KarbantartasiIdosav> KarbantartasiIdosavok { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogok { get; set; } = null!;
+        public DbSet<Hiba> Hibak { get; set; } = null!;
+        public DbSet<MesterkulcsJogosultsag> MesterkulcsJogosultsagok { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

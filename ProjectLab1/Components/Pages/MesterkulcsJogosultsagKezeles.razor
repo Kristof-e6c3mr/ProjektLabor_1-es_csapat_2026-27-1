@@ -1,0 +1,276 @@
+﻿@page "/mesterkulcsjogosultsag"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Mesterkulcs Jogosultságok</PageTitle>
+
+<div class="container mt-4">
+    <h3>Mesterkulcs Jogosultságok Kezelése (Adminisztrátor)</h3>
+    <hr />
+
+    <div class="card mb-4 shadow-sm border-primary">
+        <div class="card-header @(szerkesztettJogosultsagId > 0 ? "bg-warning text-dark" : "bg-primary text-white")">
+            <h5 class="mb-0">
+                @(szerkesztettJogosultsagId > 0 ? "Jogosultság szerkesztése" : "Új jogosultság kiadása")
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Felhasználó (Portás / Oktató)</label>
+                    <select class="form-select" @bind="kivalasztottFelhasznaloId">
+                        <option value="0">-- Válassz --</option>
+                        @if (felhasznalok != null)
+                        {
+                            @foreach (var f in felhasznalok)
+                            {
+                                <option value="@f.Id">@f.Nev (@f.Szerepkor)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Mesterkulcs</label>
+                    <select class="form-select" @bind="kivalasztottKulcsId">
+                        <option value="0">-- Válassz --</option>
+                        @if (mesterkulcsok != null)
+                        {
+                            @foreach (var k in mesterkulcsok)
+                            {
+                                <option value="@k.KulcsID">Kulcs ID: @k.KulcsID</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Érvényesség kezdete</label>
+                    <input type="datetime-local" class="form-control" @bind="kezdoIdo" @bind:after="KezdoIdoValtozott" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Érvényesség vége</label>
+                    <input type="datetime-local" class="form-control" min="@kezdoIdo.ToString("yyyy-MM-ddTHH:mm")" @bind="zaroIdo" />
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button class="btn btn-success w-100" @onclick="JogosultsagMentes">Mentés</button>
+                    @if (szerkesztettJogosultsagId > 0)
+                    {
+                        <button class="btn btn-secondary" @onclick="MentesMegsem" title="Mégsem"><i class="bi bi-x-lg"></i></button>
+                    }
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(hibaUzenet))
+            {
+                <div class="alert alert-danger mt-3 mb-0">@hibaUzenet</div>
+            }
+            @if (!string.IsNullOrEmpty(sikeresUzenet))
+            {
+                <div class="alert alert-success mt-3 mb-0">@sikeresUzenet</div>
+            }
+        </div>
+    </div>
+
+    <h4 class="mt-5">Kiadott Mesterkulcs Jogosultságok</h4>
+    @if (jogosultsagok == null)
+    {
+        <p><em>Betöltés...</em></p>
+    }
+    else if (!jogosultsagok.Any())
+    {
+        <div class="alert alert-info">Jelenleg nincs érvényes mesterkulcs jogosultság kiadva.</div>
+    }
+    else
+    {
+        <table class="table table-striped table-hover align-middle mt-3">
+            <thead class="table-light">
+                <tr>
+                    <th>Felhasználó</th>
+                    <th>Szerepkör</th>
+                    <th>Kulcs ID</th>
+                    <th>Érvényesség kezdete</th>
+                    <th>Érvényesség vége</th>
+                    <th>Státusz</th>
+                    <th>Műveletek</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var j in jogosultsagok)
+                {
+                    var helyiKezdet = j.ErvenyessegKezdete.ToLocalTime();
+                    var helyiVeg = j.ErvenyessegVege.ToLocalTime();
+                    var most = DateTime.Now;
+
+                    <tr>
+                        <td class="fw-bold fs-5">@j.FelhasznaloNev</td>
+                        <td><span class="badge bg-secondary">@j.Szerepkor</span></td>
+                        <td><span class="badge bg-dark">ID: @j.KulcsID</span></td>
+                        <td>@helyiKezdet.ToString("yyyy.MM.dd HH:mm")</td>
+                        <td>@helyiVeg.ToString("yyyy.MM.dd HH:mm")</td>
+                        <td>
+                            @if (helyiVeg < most)
+                            {
+                                <span class="badge bg-secondary">Lejárt</span>
+                            }
+                            else if (helyiKezdet <= most && helyiVeg >= most)
+                            {
+                                <span class="badge bg-success">Aktív</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-info text-dark">Jövőbeli</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-warning btn-sm me-2" @onclick="() => JogosultsagSzerkesztes(j)">
+                                Módosítás
+                            </button>
+                            <button class="btn btn-danger btn-sm" @onclick="() => JogosultsagVisszavonas(j.JogosultsagID)">
+                                Törlés
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<FelhasznaloDto>? felhasznalok;
+    private List<MesterkulcsDto>? mesterkulcsok;
+    private List<JogosultsagDto>? jogosultsagok;
+    
+    private int szerkesztettJogosultsagId = 0;
+    private int kivalasztottFelhasznaloId = 0;
+    private int kivalasztottKulcsId = 0;
+    private DateTime kezdoIdo = DateTime.Today.AddHours(8);
+    private DateTime zaroIdo = DateTime.Today.AddDays(30).AddHours(16);
+    
+    private string hibaUzenet = "";
+    private string sikeresUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
+        {
+            return;
+        }
+
+        await AdatokBetoltese();
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        felhasznalok = await HttpAccess.GetJsonAsync<List<FelhasznaloDto>>(Http, Navigation, "api/mesterkulcsjogosultsag/felhasznalok");
+        mesterkulcsok = await HttpAccess.GetJsonAsync<List<MesterkulcsDto>>(Http, Navigation, "api/mesterkulcsjogosultsag/mesterkulcsok");
+        jogosultsagok = await HttpAccess.GetJsonAsync<List<JogosultsagDto>>(Http, Navigation, "api/mesterkulcsjogosultsag");
+    }
+
+    private void KezdoIdoValtozott()
+    {
+        if (zaroIdo < kezdoIdo)
+        {
+            zaroIdo = kezdoIdo.AddDays(1);
+        }
+    }
+
+    private void JogosultsagSzerkesztes(JogosultsagDto dto)
+    {
+        hibaUzenet = ""; sikeresUzenet = "";
+        szerkesztettJogosultsagId = dto.JogosultsagID;
+        kivalasztottFelhasznaloId = dto.FelhasznaloID;
+        kivalasztottKulcsId = dto.KulcsID;
+        kezdoIdo = dto.ErvenyessegKezdete.ToLocalTime();
+        zaroIdo = dto.ErvenyessegVege.ToLocalTime();
+    }
+
+    private void MentesMegsem()
+    {
+        szerkesztettJogosultsagId = 0;
+        kivalasztottFelhasznaloId = 0;
+        kivalasztottKulcsId = 0;
+        kezdoIdo = DateTime.Today.AddHours(8);
+        zaroIdo = DateTime.Today.AddDays(30).AddHours(16);
+        hibaUzenet = "";
+    }
+
+    private async Task JogosultsagMentes()
+    {
+        hibaUzenet = ""; sikeresUzenet = "";
+
+        if (kivalasztottFelhasznaloId == 0)
+        {
+            hibaUzenet = "Kérlek válassz egy felhasználót!"; return;
+        }
+        if (kivalasztottKulcsId == 0)
+        {
+            hibaUzenet = "Kérlek válassz egy mesterkulcsot!"; return;
+        }
+        if (kezdoIdo >= zaroIdo)
+        {
+            hibaUzenet = "Az érvényesség vége nem lehet korábban, mint a kezdete!"; return;
+        }
+
+        var mentesDto = new
+        {
+            FelhasznaloID = kivalasztottFelhasznaloId,
+            KulcsID = kivalasztottKulcsId,
+            ErvenyessegKezdete = kezdoIdo,
+            ErvenyessegVege = zaroIdo
+        };
+
+        HttpResponseMessage response;
+        if (szerkesztettJogosultsagId > 0)
+        {
+            response = await Http.PutAsJsonAsync($"api/mesterkulcsjogosultsag/{szerkesztettJogosultsagId}", mentesDto);
+        }
+        else
+        {
+            response = await Http.PostAsJsonAsync("api/mesterkulcsjogosultsag", mentesDto);
+        }
+
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = "Mesterkulcs jogosultság sikeresen mentve!";
+            MentesMegsem();
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task JogosultsagVisszavonas(int id)
+    {
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", "Biztosan törlöd ezt a jogosultságot?");
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/mesterkulcsjogosultsag/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+            if (response.IsSuccessStatusCode)
+            {
+                if (szerkesztettJogosultsagId == id) MentesMegsem();
+                await AdatokBetoltese();
+            }
+        }
+    }
+
+    public class FelhasznaloDto { public int Id { get; set; } public string Nev { get; set; } = ""; public string Szerepkor { get; set; } = ""; }
+    public class MesterkulcsDto { public int KulcsID { get; set; } }
+    
+    public class JogosultsagDto
+    {
+        public int JogosultsagID { get; set; }
+        public int FelhasznaloID { get; set; }
+        public int KulcsID { get; set; }
+        public string FelhasznaloNev { get; set; } = "";
+        public string Szerepkor { get; set; } = "";
+        public DateTime ErvenyessegKezdete { get; set; }
+        public DateTime ErvenyessegVege { get; set; }
+    }
+}

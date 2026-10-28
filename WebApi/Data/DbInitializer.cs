@@ -1,4 +1,8 @@
-﻿using WebApi.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using WebApi.Models;
 
 namespace WebApi.Data
 {
@@ -6,19 +10,28 @@ namespace WebApi.Data
     {
         public static void Initialize(AppDbContext context)
         {
-            // Ha már vannak felhasználók, feltételezzük, hogy az adatbázis már fel van töltve
+            context.Database.EnsureCreated();
+            // --------------------------------
+
             if (context.Felhasznalok.Any()) return;
 
             var rnd = new Random();
+            string GeneratePin() => rnd.Next(100000, 999999).ToString();
 
-            // 1. FELHASZNÁLÓK
-            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = "titkos123", Szerepkor = "Adminisztrator" };
-            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = "titkos123", Szerepkor = "UzemeltetesiIgazgato" };
-            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = "titkos123", Szerepkor = "Portas" };
+            // 1. Jelszó beolvasása környezeti változóból (NEM HARDCODE!)
+            var rawPassword = Environment.GetEnvironmentVariable("SEED_PASSWORD") ?? "Titkos123!";
 
-            var oktato1 = new Felhasznalo { Nev = "Dr. Kiss Oktató", Email = "kiss.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
-            var oktato2 = new Felhasznalo { Nev = "Dr. Szabó Oktató", Email = "szabo.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
-            var oktato3 = new Felhasznalo { Nev = "Dr. Tóth Oktató", Email = "toth.o@uni.hu", Jelszo = "titkos123", Szerepkor = "Oktato" };
+            // 2. Jelszó titkosítása (Hash-elés)
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(rawPassword);
+
+            // 3. FELHASZNÁLÓK (Mindenki a titkosított jelszót kapja)
+            var admin = new Felhasznalo { Nev = "Rendszer Admin", Email = "admin@uni.hu", Jelszo = hashedPassword, Szerepkor = "Adminisztrator", PinKod = null };
+            var uzemelteto = new Felhasznalo { Nev = "Kovács Üzemeltető", Email = "uzemeltetes@uni.hu", Jelszo = hashedPassword, Szerepkor = "UzemeltetesiIgazgato", PinKod = null };
+            var portas = new Felhasznalo { Nev = "Nagy Portás", Email = "portas@uni.hu", Jelszo = hashedPassword, Szerepkor = "Portas", PinKod = null };
+
+            var oktato1 = new Felhasznalo { Nev = "Dr. Kiss Oktató", Email = "kiss.o@uni.hu", Jelszo = hashedPassword, Szerepkor = "Oktato", PinKod = GeneratePin() };
+            var oktato2 = new Felhasznalo { Nev = "Dr. Szabó Oktató", Email = "szabo.o@uni.hu", Jelszo = hashedPassword, Szerepkor = "Oktato", PinKod = GeneratePin() };
+            var oktato3 = new Felhasznalo { Nev = "Dr. Tóth Oktató", Email = "toth.o@uni.hu", Jelszo = hashedPassword, Szerepkor = "Oktato", PinKod = GeneratePin() };
 
             context.Felhasznalok.AddRange(admin, uzemelteto, portas, oktato1, oktato2, oktato3);
 
@@ -42,7 +55,7 @@ namespace WebApi.Data
                     Teremszam = nev,
                     Ferohely = rnd.Next(20, 51),
                     Adminisztrator = admin,
-                    Felszereltsegek = new List<Felszereltseg> { filctabla } // Filctábla mindenhol van
+                    Felszereltsegek = new List<Felszereltseg> { filctabla }
                 };
 
                 if (isPcRoom) terem.Felszereltsegek.Add(szamitogepek);
@@ -53,19 +66,17 @@ namespace WebApi.Data
                 kulcsok.Add(new Kulcs { Terem = terem, MesterkulcsE = false, KiadvaE = false });
             }
 
-            // Földszint
             CreateTerem("I1", false);
             CreateTerem("I2", false);
             CreateTerem("I3", false);
             CreateTerem("PC0", true);
 
-            // 1-9. emelet (101-120... 901-920)
             for (int emelet = 1; emelet <= 9; emelet++)
             {
                 for (int szoba = 1; szoba <= 20; szoba++)
                 {
                     string teremNev = $"I{emelet}{szoba:D2}";
-                    CreateTerem(teremNev, szoba % 5 == 0); // Minden 5. terem legyen "gépterem"
+                    CreateTerem(teremNev, szoba % 5 == 0);
                 }
             }
             context.Termek.AddRange(termek);
@@ -75,7 +86,7 @@ namespace WebApi.Data
             context.Kulcsok.Add(new Kulcs { MesterkulcsE = true, KiadvaE = false, Terem = null });
             context.Kulcsok.Add(new Kulcs { MesterkulcsE = true, KiadvaE = false, Terem = null });
 
-            context.SaveChanges(); // Elmentjük, hogy legyen ID-juk a továbbiakhoz
+            context.SaveChanges();
 
             // 5. HIBÁK BEJELENTÉSE ÉS NAPLÓZÁSA
             var i1Terem = context.Termek.First(t => t.Teremszam == "I1");
@@ -102,7 +113,7 @@ namespace WebApi.Data
 
             context.AuditLogok.Add(new AuditLog { Foglalas = foglalas, Muvelet = "Foglalas", Reszletek = $"Foglalás történt: {oktato1.Nev} lefoglalta az I1 termet holnap 12:00-13:30-ig.", UzemeltetesiIgazgato = uzemelteto });
 
-            // 7. KULCSMOZGÁSOK (Elvitel és Visszahozatal)
+            // 7. KULCSMOZGÁSOK 
             var i1Kulcs = context.Kulcsok.First(k => k.TeremID == i1Terem.TeremID);
             var elvitelIdo = DateTime.UtcNow.AddHours(-2);
             var visszahozasIdo = DateTime.UtcNow.AddMinutes(-30);

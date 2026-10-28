@@ -1,0 +1,207 @@
+﻿@page "/kulcsok"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Kulcsok kezelése</PageTitle>
+
+<div class="container mt-4">
+    <h3>Kulcstörzs kezelése</h3>
+    <hr />
+
+    <div class="row mb-4 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label fw-bold">Kulcs típusa / Terem</label>
+            <input type="text" class="form-control" list="teremList" @bind="kivalasztottTerem" placeholder="Kezdj el gépelni vagy válassz a listából..." />
+            <datalist id="teremList">
+                <option value="Mesterkulcs">Mesterkulcs (nincs teremhez rendelve)</option>
+                @if (termek != null)
+                {
+                    @foreach (var terem in termek)
+                    {
+                        <option value="@terem.Teremszam">@terem.Teremszam</option>
+                    }
+                }
+            </datalist>
+        </div>
+        <div class="col-md-3 mb-1">
+            <button class="btn btn-success" @onclick="KulcsHozzaadasa">Új kulcs felvétele</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger mb-4">
+            @hibaUzenet
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(sikeresUzenet))
+    {
+        <div class="alert alert-success mb-4">
+            @sikeresUzenet
+        </div>
+    }
+
+    @if (kulcsok == null)
+    {
+        <p><em>Betöltés...</em></p>
+    }
+    else if (!kulcsok.Any())
+    {
+        <p>Nincsenek rögzített kulcsok az adatbázisban.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Teremszám</th>
+                    <th>Típus</th>
+                    <th>Jelenlegi állapot</th>
+                    <th>Műveletek</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var kulcs in kulcsok)
+                {
+                    <tr>
+                        <td>@kulcs.KulcsID</td>
+                        <td><span class="fw-bold">@kulcs.Teremszam</span></td>
+                        <td>
+                            @if (kulcs.MesterkulcsE)
+                            {
+                                <span class="badge bg-primary">Mesterkulcs</span>
+                            }
+                            else
+                            {
+                                <span>Normál kulcs</span>
+                            }
+                        </td>
+                        <td>
+                            @if (kulcs.KiadvaE)
+                            {
+                                <span class="badge bg-warning text-dark">Kiadva</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Portán</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => KulcsTorlese(kulcs.KulcsID, kulcs.Teremszam, kulcs.MesterkulcsE)">Törlés</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<KulcsListaDto>? kulcsok;
+    private List<TeremDto>? termek;
+    
+    private string kivalasztottTerem = ""; 
+    private string hibaUzenet = "";
+    private string sikeresUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
+        {
+            return;
+        }
+
+        await AdatokBetoltese();
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+        kulcsok = await HttpAccess.GetJsonAsync<List<KulcsListaDto>>(Http, Navigation, "api/kulcsok");
+    }
+
+    private async Task KulcsHozzaadasa()
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+        int valasztottTeremID = 0;
+
+        if (!string.IsNullOrWhiteSpace(kivalasztottTerem) && kivalasztottTerem != "Mesterkulcs")
+        {
+            var terem = termek?.FirstOrDefault(t => t.Teremszam.Equals(kivalasztottTerem, StringComparison.OrdinalIgnoreCase));
+            if (terem == null)
+            {
+                hibaUzenet = "A megadott terem nem létezik! Kérlek válassz a listából vagy írd be, hogy Mesterkulcs.";
+                return;
+            }
+            valasztottTeremID = terem.TeremID;
+        }
+
+        var ujKulcs = new UjKulcsDto { TeremID = valasztottTeremID };
+        var response = await Http.PostAsJsonAsync("api/kulcsok", ujKulcs);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = valasztottTeremID == 0 
+                ? "Mesterkulcs sikeresen felvéve!" 
+                : $"A(z) {kivalasztottTerem} terem kulcsa sikeresen felvéve!";
+                
+            kivalasztottTerem = ""; 
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = "Váratlan hiba történt a kulcs mentésekor.";
+        }
+    }
+
+    private async Task KulcsTorlese(int id, string teremszam, bool mesterkulcs)
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+        
+        string uzenet = mesterkulcs && teremszam == "-" 
+            ? "ezt a mesterkulcsot" 
+            : $"a(z) {teremszam} terem kulcsát";
+            
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd {uzenet}?");
+        
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/kulcsok/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+            if (response.IsSuccessStatusCode)
+            {
+                sikeresUzenet = "A kulcs sikeresen törölve!";
+                await AdatokBetoltese();
+            }
+            else
+            {
+                hibaUzenet = await response.Content.ReadAsStringAsync();
+            }
+        }
+    }
+
+    public class TeremDto
+    {
+        public int TeremID { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
+    }
+
+    public class KulcsListaDto
+    {
+        public int KulcsID { get; set; }
+        public bool MesterkulcsE { get; set; }
+        public bool KiadvaE { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
+    }
+
+    public class UjKulcsDto
+    {
+        public int TeremID { get; set; }
+    }
+}

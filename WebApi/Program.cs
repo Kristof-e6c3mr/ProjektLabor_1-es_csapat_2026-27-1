@@ -1,15 +1,17 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+
 using Scalar.AspNetCore;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+
 using WebApi.Data;    // AppDbContext
 using WebApi.Models;  // Tables
-
 
 namespace WebApi
 {
@@ -23,12 +25,67 @@ namespace WebApi
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
             // Add services to the container.
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+            });
+            builder.Services.AddEndpointsApiExplorer();
+
+            builder.Services.ConfigureHttpJsonOptions(options =>
+            {
+                options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+            });
+
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
+            // --- JWT HITELESÍTÉS BEÁLLÍTÁSA ---
+            // A kulcsnak pontosan egyeznie kell a LoginControllerben lévővel!
+            var key = Encoding.ASCII.GetBytes("NagyonTitkosKulcsAmiLegalabb32KarakterHosszu!");
+
+            builder.Services.AddAuthentication(x =>
+            {
+                x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                x.DefaultForbidScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(x =>
+            {
+                x.RequireHttpsMetadata = false; // Docker hálózaton HTTP van
+                x.SaveToken = true;
+                x.MapInboundClaims = true;
+                x.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false, // Fejlesztéshez kikapcsolva
+                    ValidateAudience = false, // Fejlesztéshez kikapcsolva
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero,
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.Name
+                };
+                x.Events = new JwtBearerEvents
+                {
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsync("""{"error":"Nincs érvényes bejelentkezés."}""");
+                    },
+                    OnForbidden = async context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsync("""{"error":"Nincs jogosultság a kért művelethez."}""");
+                    }
+                };
+            });
+
+            // Autorizáció regisztrálása
+            builder.Services.AddAuthorization();
 
             var app = builder.Build();
 
@@ -43,8 +100,9 @@ namespace WebApi
                 app.UseHttpsRedirection();
             }
 
+            // --- A SORREND KRITIKUS: A UseAuthentication-nek a UseAuthorization ELŐTT kell lennie ---
+            app.UseAuthentication();
             app.UseAuthorization();
-
 
             app.MapControllers();
 
@@ -58,57 +116,18 @@ namespace WebApi
                 WebApi.Data.DbInitializer.Initialize(context);
             }
 
-            // POST Endpoint a Login Requestre
-            app.MapPost("/api/login", async (LoginModel request, AppDbContext db, IConfiguration config) =>
-            {
-                var user = await db.Felhasznalok
-                    .FirstOrDefaultAsync(f => f.Nev == request.Username || f.Email == request.Username);
+            // TÖRÖLTÜK a Minimal API MapGet("/api/login") részt. 
+            // A bejelentkezést mostantól a valós adatbázist használó LoginController kezeli!
 
-                if (user != null && user.Jelszo == request.Password)
-                {
-                    // Create the security key
-                    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!));
-                    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-                    // Define the payload
-                    var claims = new[]
-                    {
-                        new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                        new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                        new Claim(ClaimTypes.NameIdentifier, user.Nev),
-                        new Claim(ClaimTypes.Role, user.Szerepkor)
-                    };
-
-                    // 3. Assemble the token
-                    var token = new JwtSecurityToken(
-                        issuer: config["JwtSettings:Issuer"],
-                        audience: config["JwtSettings:Audience"],
-                        claims: claims,
-                        expires: DateTime.UtcNow.AddMinutes(15), // Short lifespan for security
-                        signingCredentials: credentials);
-
-                    // 4. Serialize to a string
-                    var jwtString = new JwtSecurityTokenHandler().WriteToken(token);
-
-                    return Results.Ok(new
-                    {
-                        Token = jwtString,
-                        Role = user.Szerepkor
-                    });
-                }
-
-                return Results.Unauthorized();
-            })
-            .WithName("Login");
-            //.withOpenApi() Deprecated?
-
-            // D pont: Szolgáltatás állapotjelző (Health Check) végpont
+            // Szolgáltatás állapotjelző (Health Check) végpont
             app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
 
             // Alapvető adat-lekérdező végpont (felhasználók listázása)
             app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
             {
-                return await db.Felhasznalok.ToListAsync();
+                return await db.Felhasznalok
+                    .Select(f => new { f.Id, f.Nev, f.Email, f.Szerepkor })
+                    .ToListAsync();
             }).WithName("GetFelhasznalok");
 
             app.Run();

@@ -21,6 +21,8 @@ namespace WebApi.Models
         [Required]
         public string Szerepkor { get; set; } = "Oktato"; // Oktato, Portas, Adminisztrator, UzemeltetesiIgazgato
 
+        public string? PinKod { get; set; }
+
         // JWT Refresh Tokenhez szükséges mezők
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiryTime { get; set; }

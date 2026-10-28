@@ -1,23 +1,78 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    @if (UserSession.IsLoggedIn && !IsLoginPage)
+    {
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+    }
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+        @if (UserSession.IsLoggedIn && !IsLoginPage)
+        {
+            <div class="top-row px-4 justify-content-between align-items-center">
+                <div>
+                    <span class="fw-bold">Bejelentkezve:</span> @UserSession.Username
+                    <span class="badge bg-info text-dark ms-2">@UserSession.Role</span>
+                </div>
+                <a href="/login" class="btn btn-outline-danger btn-sm text-decoration-none" @onclick="Kijelentkezes">
+                    Kijelentkezés
+                </a>
+            </div>
+        }
 
-        <article class="content px-4">
-            @Body
+        <article class="content px-4 py-3">
+            <ErrorBoundary @ref="errorBoundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent Context="ex">
+                    <div class="alert alert-warning mt-4 shadow-sm">
+                        <strong>Hiba történt a művelet során!</strong> 
+                        <span class="ms-2">Kérjük, térj vissza az előző oldalra.</span>
+                        <button class="btn btn-sm btn-warning ms-3 fw-bold" @onclick="RecoverError">
+                            Vissza a felületre
+                        </button>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    private ErrorBoundary? errorBoundary;
+
+    private bool IsLoginPage => Navigation.Uri.EndsWith("/login", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        UserSession.OnChange += HandleSessionChanged;
+    }
+
+    private void HandleSessionChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RecoverError()
+    {
+        errorBoundary?.Recover();
+    }
+
+    private void Kijelentkezes()
+    {
+        UserSession.Logout();
+        Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        UserSession.OnChange -= HandleSessionChanged;
+    }
+}

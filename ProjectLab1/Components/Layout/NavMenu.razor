@@ -1,4 +1,5 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿<!--
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">ProjectLab1</a>
     </div>
@@ -31,6 +32,109 @@
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Login
             </NavLink>
         </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="hibajegy">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Hibajegy felvétel
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="termek">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Termek kezelése
+             </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="kulcsok">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Kulcsok kezelése
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="kulcsfelvetel">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Kulcs kiadás
+            </NavLink>
+        </div>
     </nav>
 </div>
+-->
+@inject ProjectLab1.Services.UserSessionService UserSession
 
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Kulcs & Terem Nyilvántartó</a>
+    </div>
+</div>
+
+<input type="checkbox" id="navbar-toggler" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.getElementById('navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Kezdőlap
+            </NavLink>
+        </div>
+
+        @if (UserSession.Role == "Oktato")
+        {
+            <!-- OKTATÓ: teremfoglalás és saját foglalások -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="foglalasok">
+                    <span class="bi bi-calendar-check" aria-hidden="true"></span> Saját foglalásaim
+                </NavLink>
+            </div>
+        }
+
+        @if (UserSession.Role == "Portas")
+        {
+            <!-- PORTÁS: kulcs kiadás/átvétel, hibajegy -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="kulcskiadas">
+                    <span class="bi bi-key" aria-hidden="true"></span> Kulcs kiadása
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="hibajegy">
+                    <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegy felvétele
+                </NavLink>
+            </div>
+        }
+
+        @if (UserSession.Role == "Adminisztrator")
+        {
+            <!-- ADMINISZTRÁTOR: teremtörzs, kulcstörzs, mesterkulcs jogosultság, karbantartási idősáv -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="termek">
+                    <span class="bi bi-building" aria-hidden="true"></span> Termek kezelése
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="kulcsok">
+                    <span class="bi bi-journal-bookmark" aria-hidden="true"></span> Kulcsok kezelése
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="mesterkulcsjogosultsag">
+                    <span class="bi bi-shield-lock" aria-hidden="true"></span> Mesterkulcs jogosultságok
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="karbantartas">
+                    <span class="bi bi-tools" aria-hidden="true"></span> Karbantartások
+                </NavLink>
+            </div>
+        }
+
+        @if (UserSession.Role == "UzemeltetesiIgazgato")
+        {
+            <!-- ÜZEMELTETÉSI IGAZGATÓ: (Riportok / audit log - ha van külön komponens, vagy a főoldalról érik el) -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="">
+                    <span class="bi bi-graph-up" aria-hidden="true"></span> Riportok & Elemzések
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>

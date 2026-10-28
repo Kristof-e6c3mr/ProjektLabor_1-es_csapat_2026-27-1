@@ -20,6 +20,7 @@ services:
       - db
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=BlazorAppDb;Username=admin;Password=YourSecurePassword123!
+      - SEED_PASSWORD=titkos123 # Innen olvassa ki a tesztadatok jelszavát
 
   #POSTGRES
   db:

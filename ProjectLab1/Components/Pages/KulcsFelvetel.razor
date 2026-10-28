@@ -1,0 +1,201 @@
+﻿@page "/kulcskiadas"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Kulcs Kiadása</PageTitle>
+
+<div class="container mt-4">
+    <h3>Kulcs kiadása</h3>
+    <hr />
+
+    <!-- 1. LÉPÉS: PIN Kód bekérése -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Oktató azonosítása</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Oktató PIN kódja</label>
+                    <input type="password" class="form-control text-center fs-4" @bind="pinKod" placeholder="****" maxlength="4" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100 fs-5" @onclick="OktatoAzonositasa">
+                        <span class="bi bi-search"></span> Keresés
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(pinHiba))
+            {
+                <div class="text-danger mt-2">@pinHiba</div>
+            }
+        </div>
+    </div>
+
+    <!-- 2. LÉPÉS: Választható kulcsok listázása -->
+    @if (azonositottOktatoId > 0)
+    {
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Kiadható kulcsok - @azonositottOktatoNev</h5>
+                <button class="btn btn-sm btn-light" @onclick="Reset">Mégsem (Új azonosítás)</button>
+            </div>
+            <div class="card-body">
+                @if (kiadhatoKulcsok == null)
+                {
+                    <p><em>Kulcsok betöltése...</em></p>
+                }
+                else if (!kiadhatoKulcsok.Any())
+                {
+                    <div class="alert alert-info">Nincs kiadható kulcs ehhez az oktatóhoz (nincs mai foglalása vagy érvényes mesterkulcsa).</div>
+                }
+                else
+                {
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Kulcs / Terem</th>
+                                <th>Típus</th>
+                                <th>Időpont</th>
+                                <th>Művelet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var k in kiadhatoKulcsok)
+                            {
+                                <tr>
+                                    <td class="fw-bold fs-5">@k.Megnevezes</td>
+                                    <td><span class="badge @(k.Tipus == "Mesterkulcs" ? "bg-warning text-dark" : "bg-info")">@k.Tipus</span></td>
+                                    <td>@k.Idopont</td>
+                                    <td>
+                                        <button class="btn btn-success" @onclick="() => KulcsKiadasa(k.KulcsID)">
+                                            Kulcs kiadása
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+    
+    @if (!string.IsNullOrEmpty(rendszerUzenet))
+    {
+        <div class="alert alert-success mt-3 fs-5">@rendszerUzenet</div>
+    }
+</div>
+
+@code {
+    private int bejelentkezettPortasId = 0;
+
+    // Űrlap változók
+    private string pinKod = "";
+    private string pinHiba = "";
+    private string rendszerUzenet = "";
+
+    // Oktató adatai
+    private int azonositottOktatoId = 0;
+    private string azonositottOktatoNev = "";
+    private List<KiadhatoKulcsDto>? kiadhatoKulcsok;
+
+    protected override void OnInitialized()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Portas"))
+        {
+            return;
+        }
+
+        bejelentkezettPortasId = UserSession.UserId;
+    }
+
+    private async Task OktatoAzonositasa()
+    {
+        pinHiba = "";
+        rendszerUzenet = "";
+        
+        if (string.IsNullOrWhiteSpace(pinKod))
+        {
+            pinHiba = "Kérlek add meg a PIN kódot!";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/azonositas", pinKod);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<OktatoDto>();
+            if (result != null)
+            {
+                azonositottOktatoId = result.Id;
+                azonositottOktatoNev = result.Nev;
+                pinKod = ""; // Biztonsági okokból töröljük a mezőt
+                await KulcsokBetoltese();
+            }
+        }
+        else
+        {
+            pinHiba = "Érvénytelen PIN kód vagy a felhasználó nem található.";
+        }
+    }
+
+    private async Task KulcsokBetoltese()
+    {
+        kiadhatoKulcsok = await HttpAccess.GetJsonAsync<List<KiadhatoKulcsDto>>(Http, Navigation, $"api/kulcsmozgas/kiadhato-kulcsok/{azonositottOktatoId}");
+    }
+
+    private async Task KulcsKiadasa(int kulcsId)
+    {
+        var keres = new KulcsKiadasKeresDto
+        {
+            KulcsID = kulcsId,
+            OktatoID = azonositottOktatoId,
+            PortasID = bejelentkezettPortasId
+        };
+
+        var response = await Http.PostAsJsonAsync("api/kulcsmozgas/kiadas", keres);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            rendszerUzenet = "Kulcs sikeresen kiadva!";
+            Reset(); // Visszaállítjuk az űrlapot a következő oktatóhoz
+        }
+        else
+        {
+            pinHiba = "Hiba történt a kiadás során!";
+        }
+    }
+
+    private void Reset()
+    {
+        azonositottOktatoId = 0;
+        azonositottOktatoNev = "";
+        kiadhatoKulcsok = null;
+        pinKod = "";
+    }
+
+    public class OktatoDto
+    {
+        public int Id { get; set; }
+        public string Nev { get; set; } = "";
+    }
+
+    public class KiadhatoKulcsDto
+    {
+        public int KulcsID { get; set; }
+        public string Megnevezes { get; set; } = "";
+        public string Tipus { get; set; } = "";
+        public string Idopont { get; set; } = "";
+    }
+
+    public class KulcsKiadasKeresDto
+    {
+        public int KulcsID { get; set; }
+        public int OktatoID { get; set; }
+        public int PortasID { get; set; }
+    }
+}

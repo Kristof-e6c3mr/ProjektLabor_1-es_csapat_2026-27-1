@@ -1,69 +1,80 @@
-﻿@page "/login" 
+﻿@page "/login"
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
 @inject HttpClient Http
 @inject ILogger<Login> Logger
 
-<h3>Login Page</h3>
-<EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="loginForm">
-    <div style="margin-bottom: 10px;">
-        <label>Username:</label>
-        <InputText @bind-Value="loginModel.Username" />
+<PageTitle>Bejelentkezés</PageTitle>
+
+<div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="card shadow p-4" style="width: 100%; max-width: 420px;">
+        <h3 class="card-title text-center mb-4 fw-bold text-primary">Egyetemi Kulcs- és Teremnyilvántartó</h3>
+        <h5 class="text-center text-muted mb-4">Bejelentkezés</h5>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Felhasználónév (Email):</label>
+            <input type="text" class="form-control" @bind="username" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Jelszó:</label>
+            <input type="password" class="form-control" @bind="password" />
+        </div>
+
+        <button type="button" class="btn btn-primary w-100 py-2 mt-2 fw-bold" @onclick="HandleLogin" disabled="@isBusy">
+            @(isBusy ? "Belépés..." : "Belépés")
+        </button>
+
+        @if (!string.IsNullOrEmpty(hibaUzenet))
+        {
+            <div class="alert alert-danger mt-3 mb-0">@hibaUzenet</div>
+        }
     </div>
-    
-    <div style="margin-bottom: 10px;">
-        <label>Password:</label>
-        <InputText @bind-Value="loginModel.Password" type="password" />
-    </div>
-    
-    <button type="submit">Log In</button>
-</EditForm>
-
-@if (apiResponse != null)
-{
-    <div style="margin-top: 20px; padding: 15px; border: 1px solid #4CAF50; background-color: #f1f8e9;">
-        <h4>Login Successful!</h4>
-        <p><strong>Role (Szerepkör):</strong> @apiResponse.Role</p>
-        <p><strong>JWT Token:</strong></p>
-        <p style="word-break: break-all; font-family: monospace; font-size: 0.9em;">@apiResponse.Token</p>
-    </div>
-}
-else if (loginFailed)
-{
-    <div style="margin-top: 15px; color: red;">
-        Invalid username or password. Please try again.
-    </div>
-}
-
-
-
-
+</div>
 
 @code {
-
-    [SupplyParameterFromForm]
-    private LoginModel loginModel { get; set; } = new();
-
-    private LoginResponse? apiResponse;
-    private bool loginFailed;
+    private string username = "";
+    private string password = "";
+    private string hibaUzenet = "";
+    private bool isBusy;
 
     private async Task HandleLogin()
     {
-        // 3. Make the API call directly from C#
-        var response = await Http.PostAsJsonAsync("api/login", loginModel);
-        Logger.LogInformation("Login attempt for username: {Username}", loginModel.Username);
+        hibaUzenet = "";
+        isBusy = true;
 
-        loginFailed = false;
-        apiResponse = null;
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            // Deserialize the JSON Payload
-            apiResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
-            Logger.LogInformation("Login success! Role assigned: {Role}", apiResponse?.Role);
+            var loginModel = new LoginModel { Username = username, Password = password };
+            var response = await Http.PostAsJsonAsync("api/login", loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResultDto>();
+                if (result != null && !string.IsNullOrEmpty(result.Token))
+                {
+                    // Visszaállítva a stabil szinkron memóriahívásra
+                    UserSession.SetUser(result.Id, result.Username, result.Token, result.Role);
+                    Navigation.NavigateTo("/");
+                    return;
+                }
+
+                hibaUzenet = "Hiba történt a válasz feldolgozása során.";
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                hibaUzenet = string.IsNullOrWhiteSpace(errorContent) ? "Hibás felhasználónév vagy jelszó!" : errorContent;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            loginFailed = true;
-            Logger.LogWarning("Login failed with status code: {StatusCode}", response.StatusCode);
+            hibaUzenet = $"Hálózati hiba: {ex.Message}";
+            Logger.LogError(ex, "Bejelentkezési hiba történt.");
+        }
+        finally
+        {
+            isBusy = false;
         }
     }
 
@@ -73,9 +84,18 @@ else if (loginFailed)
         public string Password { get; set; } = "";
     }
 
-    public class LoginResponse
+    public class LoginResultDto
     {
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("username")]
+        public string Username { get; set; } = "";
+
+        [System.Text.Json.Serialization.JsonPropertyName("token")]
         public string Token { get; set; } = "";
+
+        [System.Text.Json.Serialization.JsonPropertyName("role")]
         public string Role { get; set; } = "";
     }
 }

@@ -1,0 +1,146 @@
+﻿@page "/termek"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Termek kezelése</PageTitle>
+
+<div class="container mt-4">
+    <h3>Termek törzsadatai</h3>
+    <hr />
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input type="text" class="form-control" placeholder="Teremszám (pl. I102)" @bind="ujTerem.Teremszam" />
+        </div>
+        <div class="col-md-3">
+            <input type="number" class="form-control" placeholder="Férőhely" min="0" @bind="ujTerem.Ferohely" />
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-success" @onclick="TeremHozzaadasa">Új terem felvitele</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger mb-4">
+            @hibaUzenet
+        </div>
+    }
+
+    @if (termek == null)
+    {
+        <p><em>Betöltés...</em></p>
+    }
+    else if (!termek.Any())
+    {
+        <p>Nincsenek rögzített termek.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Teremszám</th>
+                    <th>Férőhely</th>
+                    <th>Állapot</th>
+                    <th>Műveletek</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var terem in termek)
+                {
+                    <tr>
+                        <td>@terem.TeremID</td>
+                        <td>@terem.Teremszam</td>
+                        <td>@terem.Ferohely</td>
+                        <td>@(terem.Allapot ? "Aktív" : "Inaktív")</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => TeremTorlese(terem.TeremID, terem.Teremszam)">Törlés</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<TeremDto>? termek;
+    private TeremDto ujTerem = new TeremDto { Allapot = true };
+    private string hibaUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
+        {
+            return;
+        }
+
+        await TermekBetoltese();
+    }
+
+    private async Task TermekBetoltese()
+    {
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+    }
+
+    private async Task TeremHozzaadasa()
+    {
+        hibaUzenet = "";
+
+        if (string.IsNullOrWhiteSpace(ujTerem.Teremszam))
+        {
+            hibaUzenet = "A teremszám megadása kötelező!";
+            return;
+        }
+
+        if (ujTerem.Ferohely < 0)
+        {
+            hibaUzenet = "A férőhely nem lehet negatív!";
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/termek", ujTerem);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            ujTerem = new TeremDto { Allapot = true };
+            await TermekBetoltese();
+        }
+        else
+        {
+            hibaUzenet = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task TeremTorlese(int id, string teremszam)
+    {
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd a(z) {teremszam} termet?");
+        
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/termek/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+            if (response.IsSuccessStatusCode)
+            {
+                await TermekBetoltese();
+            }
+            else
+            {
+                hibaUzenet = "Hiba történt a törlés során.";
+            }
+        }
+    }
+
+    public class TeremDto
+    {
+        public int TeremID { get; set; }
+        public string Teremszam { get; set; } = string.Empty;
+        public int Ferohely { get; set; }
+        public bool Allapot { get; set; } = true;
+    }
+}
