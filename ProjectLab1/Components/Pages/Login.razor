@@ -1,5 +1,4 @@
 ﻿@page "/login"
-@rendermode InteractiveServer
 @inject NavigationManager Navigation
 @inject ProjectLab1.Services.UserSessionService UserSession
 @inject HttpClient Http
@@ -12,24 +11,20 @@
         <h3 class="card-title text-center mb-4 fw-bold text-primary">Egyetemi Kulcs- és Teremnyilvántartó</h3>
         <h5 class="text-center text-muted mb-4">Bejelentkezés</h5>
 
-        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
-            <DataAnnotationsValidator />
+        <div class="mb-3">
+            <label class="form-label fw-bold">Felhasználónév (Email):</label>
+            <input type="text" class="form-control" @bind="username" />
+        </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">Felhasználónév (Email):</label>
-                <InputText class="form-control" @bind-Value="loginModel.Username" />
-            </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Jelszó:</label>
+            <input type="password" class="form-control" @bind="password" />
+        </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">Jelszó:</label>
-                <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
-            </div>
+        <button type="button" class="btn btn-primary w-100 py-2 mt-2 fw-bold" @onclick="HandleLogin" disabled="@isBusy">
+            @(isBusy ? "Belépés..." : "Belépés")
+        </button>
 
-            <button type="submit" class="btn btn-primary w-100 py-2 mt-2 fw-bold">
-                Belépés
-            </button>
-        </EditForm>
-        
         @if (!string.IsNullOrEmpty(hibaUzenet))
         {
             <div class="alert alert-danger mt-3 mb-0">@hibaUzenet</div>
@@ -38,28 +33,33 @@
 </div>
 
 @code {
-    private LoginModel loginModel = new();
+    private string username = "";
+    private string password = "";
     private string hibaUzenet = "";
+    private bool isBusy;
 
     private async Task HandleLogin()
     {
         hibaUzenet = "";
+        isBusy = true;
+
         try
         {
+            var loginModel = new LoginModel { Username = username, Password = password };
             var response = await Http.PostAsJsonAsync("api/login", loginModel);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResultDto>();
-                if (result != null)
+                if (result != null && !string.IsNullOrEmpty(result.Token))
                 {
+                    // Visszaállítva a stabil szinkron memóriahívásra
                     UserSession.SetUser(result.Id, result.Username, result.Token, result.Role);
                     Navigation.NavigateTo("/");
+                    return;
                 }
-                else
-                {
-                    hibaUzenet = "Hiba történt a válasz feldolgozása során.";
-                }
+
+                hibaUzenet = "Hiba történt a válasz feldolgozása során.";
             }
             else
             {
@@ -71,6 +71,10 @@
         {
             hibaUzenet = $"Hálózati hiba: {ex.Message}";
             Logger.LogError(ex, "Bejelentkezési hiba történt.");
+        }
+        finally
+        {
+            isBusy = false;
         }
     }
 

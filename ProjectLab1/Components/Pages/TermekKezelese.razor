@@ -1,5 +1,4 @@
 ﻿@page "/termek"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -75,10 +74,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Kliens oldali védelem: Ha nem Adminisztrátor, kivágjuk az oldalról
-        if (UserSession.Role != "Adminisztrator")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
@@ -87,7 +84,7 @@
 
     private async Task TermekBetoltese()
     {
-        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
     }
 
     private async Task TeremHozzaadasa()
@@ -107,7 +104,8 @@
         }
 
         var response = await Http.PostAsJsonAsync("api/termek", ujTerem);
-        
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             ujTerem = new TeremDto { Allapot = true };
@@ -126,6 +124,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/termek/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode)
             {
                 await TermekBetoltese();

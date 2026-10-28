@@ -27,30 +27,42 @@
         }
 
         <article class="content px-4 py-3">
-            @Body
+            <ErrorBoundary @ref="errorBoundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent Context="ex">
+                    <div class="alert alert-warning mt-4 shadow-sm">
+                        <strong>Hiba történt a művelet során!</strong> 
+                        <span class="ms-2">Kérjük, térj vissza az előző oldalra.</span>
+                        <button class="btn btn-sm btn-warning ms-3 fw-bold" @onclick="RecoverError">
+                            Vissza a felületre
+                        </button>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
-
 @code {
+    private ErrorBoundary? errorBoundary;
+
     private bool IsLoginPage => Navigation.Uri.EndsWith("/login", StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {
-        // JAVÍTVA: Saját eseménykezelőt kötünk be, ami kezeli a szálakat
         UserSession.OnChange += HandleSessionChanged;
     }
 
     private void HandleSessionChanged()
     {
-        // JAVÍTVA: InvokeAsync-be csomagoljuk a felületfrissítést, így a UI szálon fut le
         InvokeAsync(StateHasChanged);
+    }
+
+    private void RecoverError()
+    {
+        errorBoundary?.Recover();
     }
 
     private void Kijelentkezes()
@@ -61,7 +73,6 @@
 
     public void Dispose()
     {
-        // JAVÍTVA: Leiratkozás az új metódusról
         UserSession.OnChange -= HandleSessionChanged;
     }
 }

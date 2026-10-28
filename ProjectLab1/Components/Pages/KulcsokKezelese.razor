@@ -1,5 +1,4 @@
 ﻿@page "/kulcsok"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -110,9 +109,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (UserSession.Role != "Adminisztrator")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
@@ -121,8 +119,8 @@
 
     private async Task AdatokBetoltese()
     {
-        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
-        kulcsok = await Http.GetFromJsonAsync<List<KulcsListaDto>>("api/kulcsok");
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+        kulcsok = await HttpAccess.GetJsonAsync<List<KulcsListaDto>>(Http, Navigation, "api/kulcsok");
     }
 
     private async Task KulcsHozzaadasa()
@@ -144,7 +142,8 @@
 
         var ujKulcs = new UjKulcsDto { TeremID = valasztottTeremID };
         var response = await Http.PostAsJsonAsync("api/kulcsok", ujKulcs);
-        
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             sikeresUzenet = valasztottTeremID == 0 
@@ -174,6 +173,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/kulcsok/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode)
             {
                 sikeresUzenet = "A kulcs sikeresen törölve!";

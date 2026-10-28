@@ -1,5 +1,4 @@
 ﻿@page "/mesterkulcsjogosultsag"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -154,9 +153,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (UserSession.Role != "Adminisztrator")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
@@ -165,9 +163,9 @@
 
     private async Task AdatokBetoltese()
     {
-        felhasznalok = await Http.GetFromJsonAsync<List<FelhasznaloDto>>("api/mesterkulcsjogosultsag/felhasznalok");
-        mesterkulcsok = await Http.GetFromJsonAsync<List<MesterkulcsDto>>("api/mesterkulcsjogosultsag/mesterkulcsok");
-        jogosultsagok = await Http.GetFromJsonAsync<List<JogosultsagDto>>("api/mesterkulcsjogosultsag");
+        felhasznalok = await HttpAccess.GetJsonAsync<List<FelhasznaloDto>>(Http, Navigation, "api/mesterkulcsjogosultsag/felhasznalok");
+        mesterkulcsok = await HttpAccess.GetJsonAsync<List<MesterkulcsDto>>(Http, Navigation, "api/mesterkulcsjogosultsag/mesterkulcsok");
+        jogosultsagok = await HttpAccess.GetJsonAsync<List<JogosultsagDto>>(Http, Navigation, "api/mesterkulcsjogosultsag");
     }
 
     private void KezdoIdoValtozott()
@@ -233,6 +231,8 @@
             response = await Http.PostAsJsonAsync("api/mesterkulcsjogosultsag", mentesDto);
         }
 
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             sikeresUzenet = "Mesterkulcs jogosultság sikeresen mentve!";
@@ -251,6 +251,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/mesterkulcsjogosultsag/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode)
             {
                 if (szerkesztettJogosultsagId == id) MentesMegsem();

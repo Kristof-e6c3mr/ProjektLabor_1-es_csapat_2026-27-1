@@ -1,6 +1,5 @@
 ﻿@page "/foglalasok"
 @page "/foglalas"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -124,9 +123,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (UserSession.Role != "Oktato" && UserSession.Role != "Adminisztrator")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Oktato", "Adminisztrator"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
@@ -140,8 +138,8 @@
 
     private async Task AdatokBetoltese()
     {
-        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
-        foglalasok = await Http.GetFromJsonAsync<List<FoglalasListaDto>>($"api/foglalasok/sajat/{bejelentkezettOktatoId}");
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+        foglalasok = await HttpAccess.GetJsonAsync<List<FoglalasListaDto>>(Http, Navigation, $"api/foglalasok/sajat/{bejelentkezettOktatoId}");
     }
 
     private void KezdoIdoValtozott()
@@ -186,7 +184,8 @@
         };
 
         var response = await Http.PostAsJsonAsync("api/foglalasok", ujFoglalas);
-        
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             sikeresUzenet = "Foglalás sikeresen rögzítve!";
@@ -208,6 +207,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/foglalasok/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode)
             {
                 sikeresUzenet = "Foglalás törölve.";

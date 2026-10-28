@@ -1,5 +1,4 @@
 ﻿@page "/karbantartas"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -270,20 +269,19 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (UserSession.Role != "Adminisztrator")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
-        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/termek");
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
         karbantartasHossz = zaroIdo - kezdoIdo;
         await KarbantartasokBetoltese();
     }
 
     private async Task KarbantartasokBetoltese()
     {
-        letezoKarbantartasok = await Http.GetFromJsonAsync<List<KarbantartasDto>>("api/karbantartasiidosav");
+        letezoKarbantartasok = await HttpAccess.GetJsonAsync<List<KarbantartasDto>>(Http, Navigation, "api/karbantartasiidosav");
     }
 
     private void KarbantartasKezdoValtozott() { zaroIdo = kezdoIdo.Add(karbantartasHossz); }
@@ -309,6 +307,7 @@
         };
 
         var response = await Http.PostAsJsonAsync("api/karbantartasiidosav/utkozesek", keres);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
         if (response.IsSuccessStatusCode)
         {
             utkozesEredmeny = await response.Content.ReadFromJsonAsync<UtkozesEredmenyDto>();
@@ -330,7 +329,9 @@
         HttpResponseMessage response = szerkesztettKarbantartasId > 0 
             ? await Http.PutAsJsonAsync($"api/karbantartasiidosav/{szerkesztettKarbantartasId}", mentes)
             : await Http.PostAsJsonAsync("api/karbantartasiidosav", mentes);
-        
+
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             sikeresUzenet = "Karbantartási idősáv sikeresen mentve!";
@@ -364,6 +365,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/karbantartasiidosav/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode)
             {
                 await KarbantartasokBetoltese();
@@ -379,6 +381,7 @@
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/foglalasok/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
             if (response.IsSuccessStatusCode) await Ellenorzes(); 
         }
     }
@@ -409,7 +412,8 @@
 
         var updateDto = new { TeremID = ujTerem.TeremID, OktatoID = 0, KezdoIdo = teljesKezdet, ZaroIdo = teljesVeg };
         var response = await Http.PutAsJsonAsync($"api/foglalasok/{szerkesztettFoglalasId}", updateDto);
-        
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode) { szerkesztettFoglalasId = 0; await Ellenorzes(); }
         else { hibaUzenet = await response.Content.ReadAsStringAsync(); }
     }
@@ -447,7 +451,8 @@
         };
 
         var response = await Http.PutAsJsonAsync($"api/karbantartasiidosav/{szerkesztettUtkozoKarbId}", mentesDto);
-        
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
         if (response.IsSuccessStatusCode)
         {
             szerkesztettUtkozoKarbId = 0;

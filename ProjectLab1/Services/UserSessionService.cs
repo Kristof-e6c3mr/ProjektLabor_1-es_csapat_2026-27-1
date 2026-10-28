@@ -1,4 +1,6 @@
-﻿namespace ProjectLab1.Services
+﻿using System;
+
+namespace ProjectLab1.Services
 {
     public class UserSessionService
     {

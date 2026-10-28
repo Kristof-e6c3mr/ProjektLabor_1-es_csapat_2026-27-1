@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -12,6 +13,7 @@ namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [AllowAnonymous]
     public class LoginController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -33,7 +35,8 @@ namespace WebApi.Controllers
             var user = await _context.Felhasznalok
                 .FirstOrDefaultAsync(u => u.Email == request.Username || u.Nev == request.Username);
 
-            if (user == null || user.Jelszo != request.Password)
+            // BCrypt jelszó ellenőrzés a plain-text helyett
+            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Jelszo))
             {
                 return Unauthorized("Hibás felhasználónév vagy jelszó.");
             }
@@ -46,7 +49,8 @@ namespace WebApi.Controllers
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                     new Claim(ClaimTypes.Name, user.Nev),
-                    new Claim(ClaimTypes.Role, user.Szerepkor)
+                    new Claim(ClaimTypes.Role, user.Szerepkor),
+                    new Claim("role", user.Szerepkor)
                 }),
                 Expires = DateTime.UtcNow.AddHours(8),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

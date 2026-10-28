@@ -1,5 +1,4 @@
 ﻿@page "/hibajegy"
-@rendermode InteractiveServer
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ProjectLab1.Services.UserSessionService UserSession
@@ -55,14 +54,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (UserSession.Role != "Portas")
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Portas"))
         {
-            Navigation.NavigateTo("/not-found");
             return;
         }
 
         ujHiba.PortasID = UserSession.UserId;
-        termek = await Http.GetFromJsonAsync<List<TeremDto>>("api/hibak/termek");
+        termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/hibak/termek");
     }
 
     private async Task HibajegyMentes()
@@ -75,6 +73,7 @@
         }
 
         var response = await Http.PostAsJsonAsync("api/hibak", ujHiba);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
 
         if (response.IsSuccessStatusCode)
         {
