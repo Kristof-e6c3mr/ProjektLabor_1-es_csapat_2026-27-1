@@ -46,3 +46,18 @@ A rendszer egy többrétegű, konténerizált (Docker) webes alkalmazás, amely 
 ## Osztálydiagram:
 <img src="images/osztalydiagram.png" alt="Osztálydiagram" width="700" />
 
+---
+
+## Tesztelési Fiókok (Seed Adatok)
+A rendszer az első induláskor automatikusan feltölti az adatbázisbeli tesztfelhasználókat a `DbInitializer` script segítségével, hogy a szoftver azonnal kipróbálható legyen.
+
+### Elérhető tesztfiókok:
+
+| Szerepkör | Felhasználónév / E-mail cím | Jelszó |
+| :--- | :--- | :--- |
+| **Adminisztrátor** | `admin@uni.hu` | `titkos123` |
+| **Üzemeltetési Igazgató** | `uzemeltetes@uni.hu` | `titkos123` |
+| **Portás** | `portas@uni.hu` | `titkos123` |
+| **Oktató** | `kiss.o@uni.hu` | `titkos123` |
+
+> **Megjegyzés:** Ezek kizárólag fejlesztői környezetre szóló seed adatok, nem éles jelszavak. A tesztfelhasználók jelszava nincs hardcode-olva (fixen beleégetve) az üzleti logikai forráskódba, hanem a környezeti változóból (pl. `SEED_PASSWORD`) vagy az alapértelmezett biztonságos értékből töltődik be.
