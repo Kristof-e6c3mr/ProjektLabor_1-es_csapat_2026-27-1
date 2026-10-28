@@ -17,6 +17,8 @@ namespace WebApi.Tests
 
         public AuthorizationTests(WebApplicationFactory<Program> factory)
         {
+            string dbName = "TestDb_Auth_" + Guid.NewGuid();
+
             _factory = factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureServices(services =>
@@ -30,8 +32,13 @@ namespace WebApi.Tests
                         services.Remove(descriptor);
                     }
 
-                    services.AddDbContext<AppDbContext>(options =>
-                        options.UseInMemoryDatabase("TestDb_Auth_" + Guid.NewGuid().ToString()));
+                    services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
+
+                    
+                    var sp = services.BuildServiceProvider();
+                    using var scope = sp.CreateScope();
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    DbInitializer.Initialize(db);
                 });
             });
         }
@@ -50,7 +57,7 @@ namespace WebApi.Tests
         public async Task VedettVegpont_MasSzerepkorrel_403asValasztAd()
         {
             var client = _factory.CreateClient();
-            var token = await BejelentkezesAsync(client, "portas@uni.hu", "titkos123");
+            var token = await BejelentkezesAsync(client, "portas@uni.hu", "Titkos123!");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await client.GetAsync("/api/kulcsok");
@@ -61,6 +68,12 @@ namespace WebApi.Tests
         private static async Task<string> BejelentkezesAsync(HttpClient client, string username, string password)
         {
             var loginResponse = await client.PostAsJsonAsync("/api/login", new { Username = username, Password = password });
+            if (!loginResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await loginResponse.Content.ReadAsStringAsync();
+                throw new Exception($"Sikertelen belépés! Státuszkód: {(int)loginResponse.StatusCode} ({loginResponse.StatusCode}). Szerver válasza: {errorBody}");
+            }
+
             loginResponse.EnsureSuccessStatusCode();
             var result = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
             Assert.False(string.IsNullOrWhiteSpace(result?.Token));
