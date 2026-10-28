@@ -25,7 +25,8 @@ namespace WebApi.Controllers
             var foglalasok = await _context.Foglalasok
                 .Include(f => f.Terem)
                 .Include(f => f.Oktato)
-                .Select(f => new {
+                .Select(f => new
+                {
                     f.FoglalasID,
                     Teremszam = f.Terem != null ? f.Terem.Teremszam : "-",
                     OktatoNev = f.Oktato != null ? f.Oktato.Nev : "-",
@@ -46,7 +47,8 @@ namespace WebApi.Controllers
                 .Include(f => f.Terem)
                 .Include(f => f.Oktato)
                 .Where(f => f.OktatoID == oktatoId)
-                .Select(f => new {
+                .Select(f => new
+                {
                     f.FoglalasID,
                     Teremszam = f.Terem != null ? f.Terem.Teremszam : "-",
                     OktatoNev = f.Oktato != null ? f.Oktato.Nev : "-",

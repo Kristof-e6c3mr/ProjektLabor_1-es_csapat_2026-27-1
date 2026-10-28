@@ -1,8 +1,8 @@
-﻿using WebApi.Models;
-
-using System;
-using System.Linq;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+
+using WebApi.Models;
 
 namespace WebApi.Data
 {
