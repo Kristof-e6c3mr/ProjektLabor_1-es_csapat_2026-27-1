@@ -1,0 +1,54 @@
+﻿@page "/pin-lekerdezes"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Saját PIN kód</PageTitle>
+
+<div class="container mt-4">
+    <h3>Saját PIN kód lekérdezése</h3>
+    <hr />
+
+    <div class="card shadow-sm p-4" style="max-width: 500px;">
+        <p class="text-muted">Itt tudod lekérdezni a saját PIN kódodat, amelyre a portán a kulcsok átvételekor lesz szükséged.</p>
+
+        <button class="btn btn-primary mb-3" @onclick="SajatPinLekerdezese">
+            <span class="bi bi-key"></span> PIN kód megjelenítése
+        </button>
+
+        @if (!string.IsNullOrEmpty(pinKódÜzenet))
+        {
+            <div class="alert alert-info mt-3 fs-5 text-center">
+                @((MarkupString)pinKódÜzenet)
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string pinKódÜzenet = "";
+
+    protected override void OnInitialized()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Oktato", "Adminisztrator"))
+        {
+            return;
+        }
+    }
+
+    private async Task SajatPinLekerdezese()
+    {
+        pinKódÜzenet = "";
+        int oktatoId = UserSession.UserId;
+        var response = await Http.GetAsync($"api/kulcsmozgas/sajat-pin/{oktatoId}");
+        if (response.IsSuccessStatusCode)
+        {
+            var pin = await response.Content.ReadAsStringAsync();
+            pinKódÜzenet = $"A PIN kódod: <strong>{pin.Trim('"')}</strong>";
+        }
+        else
+        {
+            pinKódÜzenet = "Nem sikerült lekérdezni a PIN kódot.";
+        }
+    }
+}

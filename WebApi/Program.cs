@@ -87,6 +87,9 @@ namespace WebApi
             // Autorizáció regisztrálása
             builder.Services.AddAuthorization();
 
+            // No-show háttérszolgáltatás regisztrálása
+            builder.Services.AddHostedService<WebApi.Services.NoShowBackgroundService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

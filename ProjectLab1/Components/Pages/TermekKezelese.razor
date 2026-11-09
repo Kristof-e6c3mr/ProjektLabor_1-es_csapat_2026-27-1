@@ -97,9 +97,9 @@
             return;
         }
 
-        if (ujTerem.Ferohely < 0)
+        if (ujTerem.Ferohely < 0 || ujTerem.Ferohely > 250)
         {
-            hibaUzenet = "A férőhely nem lehet negatív!";
+            hibaUzenet = "A férőhely 0 és 250 fő között kell legyen!";
             return;
         }
 

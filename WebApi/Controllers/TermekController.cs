@@ -22,7 +22,10 @@ namespace WebApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetTermek()
         {
-            var termek = await _context.Termek.ToListAsync();
+            var termek = await _context.Termek
+                .Include(t => t.Felszereltsegek)
+                .ToListAsync();
+
             return Ok(termek);
         }
 

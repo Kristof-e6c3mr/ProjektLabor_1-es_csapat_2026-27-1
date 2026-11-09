@@ -134,6 +134,16 @@ namespace WebApi.Controllers
 
             return Ok();
         }
+
+        [HttpGet("sajat-pin/{oktatoId}")]
+        public async Task<IActionResult> GetSajatPin(int oktatoId)
+        {
+            var oktato = await _context.Felhasznalok.FindAsync(oktatoId);
+            if (oktato == null || string.IsNullOrEmpty(oktato.PinKod))
+                return NotFound("A felhasználó vagy a PIN kód nem található.");
+
+            return Ok(oktato.PinKod);
+        }
     }
 
     public class KiadhatoKulcsDto

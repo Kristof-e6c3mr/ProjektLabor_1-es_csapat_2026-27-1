@@ -11,41 +11,87 @@
     <h3>Saját teremfoglalásaim</h3>
     <hr />
 
-    <div class="card mb-4">
+    <div class="card mb-4 shadow-sm">
         <div class="card-body">
-            <h5 class="card-title">Új foglalás rögzítése</h5>
-            <div class="row g-3 align-items-end">
-                
-                <div class="col-md-2">
-                    <label class="form-label">Terem (keresés)</label>
-                    <input list="termek-list" class="form-control" @bind="kivalasztottTeremszam" placeholder="Gépelj..." />
-                    <datalist id="termek-list">
-                        @if (termek != null)
+            <h5 class="card-title mb-3">Új foglalás rögzítése</h5>
+
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Min. férőhely (fő)</label>
+                    <input type="number" class="form-control" @bind="szurtFerohely" min="0" placeholder="Pl. 30" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Speciális eszközök / Felszereltségek</label>
+                    <div class="d-flex flex-wrap gap-3 mt-1">
+                        @if (elerhetoFelszereltsegek != null)
                         {
-                            @foreach (var t in termek)
+                            @foreach (var f in elerhetoFelszereltsegek)
                             {
-                                <option value="@t.Teremszam"></option>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="felszereles_@f"
+                                           checked="@kivalasztottFelszereltsegek.Contains(f)"
+                                           @onchange="(e => FelszereltsegValtas(f, e.Value))" />
+                                    <label class="form-check-label" for="felszereles_@f">
+                                        @f
+                                    </label>
+                                </div>
                             }
                         }
-                    </datalist>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <button class="btn btn-outline-primary w-100" @onclick="TermekSzurese">
+                        <span class="bi bi-filter"></span> Termek szűrése
+                    </button>
+                </div>
+            </div>
+
+            <hr class="text-muted" />
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Elérhető termek</label>
+                    <select class="form-select" @bind="kivalasztottTeremId">
+                        <option value="0">-- Válassz termet --</option>
+                        @if (szurtTermekLista != null)
+                        {
+                            @foreach (var t in szurtTermekLista)
+                            {
+                                <option value="@t.TeremID">@t.Teremszam (@t.Ferohely fő)</option>
+                            }
+                        }
+                    </select>
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Dátum</label>
-                    <input type="date" class="form-control" @bind="kivalasztottDatum" />
+                    <input type="date" class="form-control" min="@DateTime.Today.ToString("yyyy-MM-dd")" @bind="kivalasztottDatum" />
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label">Kezdés</label>
-                    <input type="time" class="form-control" @bind="kezdoIdo" @bind:after="KezdoIdoValtozott" />
+                    <input type="time" class="form-control" @bind="kezdoIdo" step="2700" @bind:after="KezdoIdoValtozott" />
                 </div>
 
                 <div class="col-md-2">
-                    <label class="form-label">Befejezés</label>
-                    <input type="time" class="form-control" @bind="zaroIdo" />
+                    <label class="form-label">Befejezés (45p lépések)</label>
+                    <select class="form-select" @bind="zaroIdoMinutes">
+                        <option value="45">@kezdoIdo.AddMinutes(45).ToString("HH:mm") (1 óra / 45p)</option>
+                        <option value="90">@kezdoIdo.AddMinutes(90).ToString("HH:mm") (1.5 óra)</option>
+                        <option value="135">@kezdoIdo.AddMinutes(135).ToString("HH:mm") (2 óra)</option>
+                        <option value="180">@kezdoIdo.AddMinutes(180).ToString("HH:mm") (2.5 óra)</option>
+                        <option value="225">@kezdoIdo.AddMinutes(225).ToString("HH:mm") (3 óra)</option>
+                        <option value="270">@kezdoIdo.AddMinutes(270).ToString("HH:mm") (3.5 óra)</option>
+                        <option value="315">@kezdoIdo.AddMinutes(315).ToString("HH:mm") (4 óra)</option>
+                        <option value="360">@kezdoIdo.AddMinutes(360).ToString("HH:mm") (4.5 óra)</option>
+                        <option value="405">@kezdoIdo.AddMinutes(405).ToString("HH:mm") (5 óra)</option>
+                        <option value="450">@kezdoIdo.AddMinutes(450).ToString("HH:mm") (Egész nap / 7.5 óra)</option>
+                    </select>
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <button class="btn btn-success w-100" @onclick="FoglalasMentes">Lefoglal</button>
                 </div>
             </div>
@@ -95,7 +141,7 @@
                         <td>@f.KezdoIdo.ToString("HH:mm")</td>
                         <td>@f.ZaroIdo.ToString("HH:mm")</td>
                         <td>
-                            <span class="badge bg-success">@f.Allapot</span>
+                            <span class="badge @(f.Allapot == "MegNemJelent" ? "bg-danger" : "bg-success")">@f.Allapot</span>
                         </td>
                         <td>
                             <button class="btn btn-danger btn-sm" @onclick="() => FoglalasTorles(f.FoglalasID)">Törlés</button>
@@ -108,18 +154,38 @@
 </div>
 
 @code {
-    private int bejelentkezettOktatoId = 0; 
+    private int bejelentkezettOktatoId = 0;
 
     private List<FoglalasListaDto>? foglalasok;
     private List<TeremDto>? termek;
-    
-    private string kivalasztottTeremszam = "";
+    private List<TeremDto>? szurtTermekLista = new();
+    private List<string> elerhetoFelszereltsegek = new() { "Projektor", "Okostábla", "Számítógépek", "Labor" };
+    private List<string> kivalasztottFelszereltsegek = new();
+
+    private int kivalasztottTeremId = 0;
     private DateTime kivalasztottDatum = DateTime.Today;
     private TimeOnly kezdoIdo = new TimeOnly(8, 0);
-    private TimeOnly zaroIdo = new TimeOnly(9, 30);
+    private int zaroIdoMinutes = 45;
+
+    private int szurtFerohely = 0;
 
     private string hibaUzenet = "";
     private string sikeresUzenet = "";
+
+    private void FelszereltsegValtas(string felszereltseg, object? isChecked)
+    {
+        if (isChecked is bool checkedValue)
+        {
+            if (checkedValue && !kivalasztottFelszereltsegek.Contains(felszereltseg))
+            {
+                kivalasztottFelszereltsegek.Add(felszereltseg);
+            }
+            else if (!checkedValue && kivalasztottFelszereltsegek.Contains(felszereltseg))
+            {
+                kivalasztottFelszereltsegek.Remove(felszereltseg);
+            }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,12 +205,34 @@
     private async Task AdatokBetoltese()
     {
         termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+        szurtTermekLista = termek ?? new(); // Biztosítjuk, hogy ne legyen üres a legördülő!
         foglalasok = await HttpAccess.GetJsonAsync<List<FoglalasListaDto>>(Http, Navigation, $"api/foglalasok/sajat/{bejelentkezettOktatoId}");
+    }
+
+    private void TermekSzurese()
+    {
+        if (termek == null) return;
+
+        var query = termek.AsEnumerable();
+
+        if (szurtFerohely > 0)
+        {
+            query = query.Where(t => t.Ferohely >= szurtFerohely);
+        }
+
+        if (kivalasztottFelszereltsegek.Any())
+        {
+            query = query.Where(t => t.Felszereltsegek != null &&
+                                kivalasztottFelszereltsegek.All(f => t.Felszereltsegek.Contains(f)));
+        }
+
+        szurtTermekLista = query.ToList();
+        kivalasztottTeremId = 0;
     }
 
     private void KezdoIdoValtozott()
     {
-        zaroIdo = kezdoIdo.AddMinutes(90);
+        zaroIdoMinutes = 45;
     }
 
     private async Task FoglalasMentes()
@@ -158,29 +246,27 @@
             return;
         }
 
-        var kivalasztottTerem = termek?.FirstOrDefault(t => t.Teremszam.Equals(kivalasztottTeremszam, StringComparison.OrdinalIgnoreCase));
-        
-        if (kivalasztottTerem == null)
-        {
-            hibaUzenet = "Érvénytelen teremszám! Kérlek válassz a listából.";
-            return;
-        }
-
         var teljesKezdet = kivalasztottDatum.Date.Add(kezdoIdo.ToTimeSpan());
-        var teljesVeg = kivalasztottDatum.Date.Add(zaroIdo.ToTimeSpan());
-
-        if (teljesKezdet >= teljesVeg)
+        if (teljesKezdet < DateTime.Now)
         {
-            hibaUzenet = "A foglalás vége nem lehet korábban, mint a kezdete!";
+            hibaUzenet = "Múltbeli időpontra nem lehet foglalást rögzíteni!";
             return;
         }
+
+        if (kivalasztottTeremId == 0)
+        {
+            hibaUzenet = "Kérlek válassz ki egy termet a listából!";
+            return;
+        }
+
+        var teljesVeg = teljesKezdet.AddMinutes(zaroIdoMinutes);
 
         var ujFoglalas = new UjFoglalasDto
         {
-            TeremID = kivalasztottTerem.TeremID,
+            TeremID = kivalasztottTeremId,
             OktatoID = bejelentkezettOktatoId,
-            KezdoIdo = teljesKezdet,
-            ZaroIdo = teljesVeg
+            KezdoIdo = teljesKezdet.ToUniversalTime(),
+            ZaroIdo = teljesVeg.ToUniversalTime()
         };
 
         var response = await Http.PostAsJsonAsync("api/foglalasok", ujFoglalas);
@@ -189,7 +275,7 @@
         if (response.IsSuccessStatusCode)
         {
             sikeresUzenet = "Foglalás sikeresen rögzítve!";
-            kivalasztottTeremszam = ""; 
+            kivalasztottTeremId = 0;
             await AdatokBetoltese();
         }
         else
@@ -202,7 +288,7 @@
     {
         hibaUzenet = "";
         sikeresUzenet = "";
-        
+
         bool megerositve = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd a saját foglalásodat?");
         if (megerositve)
         {
@@ -233,5 +319,11 @@
         public DateTime ZaroIdo { get; set; }
     }
 
-    public class TeremDto { public int TeremID { get; set; } public string Teremszam { get; set; } = ""; }
+    public class TeremDto
+    {
+        public int TeremID { get; set; }
+        public string Teremszam { get; set; } = "";
+        public int Ferohely { get; set; }
+        public List<string> Felszereltsegek { get; set; } = new();
+    }
 }
