@@ -9,7 +9,6 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Portas")]
     public class KulcsMozgasController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,6 +19,7 @@ namespace WebApi.Controllers
         }
 
         [HttpGet("oktatok")]
+        [Authorize(Roles = "Portas")]
         public async Task<IActionResult> GetOktatok()
         {
             var oktatok = await _context.Felhasznalok
@@ -30,10 +30,14 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("azonositas")]
-        public async Task<IActionResult> AzonositasPinAlapjan([FromBody] string pinKod)
+        [Authorize(Roles = "Portas")]
+        public async Task<IActionResult> AzonositasPinAlapjan([FromBody] PinKeresDto dto)
         {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.PinKod))
+                return BadRequest("A PIN kód megadása kötelező!");
+
             var oktato = await _context.Felhasznalok
-                .FirstOrDefaultAsync(f => f.PinKod == pinKod);
+                .FirstOrDefaultAsync(f => f.PinKod == dto.PinKod);
 
             if (oktato == null)
                 return NotFound("Érvénytelen PIN kód!");
@@ -42,6 +46,7 @@ namespace WebApi.Controllers
         }
 
         [HttpGet("kiadhato-kulcsok/{oktatoId}")]
+        [Authorize(Roles = "Portas")]
         public async Task<IActionResult> GetKiadhatoKulcsok(int oktatoId)
         {
             var maUtcKezdet = DateTime.UtcNow.Date;
@@ -101,17 +106,27 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("kiadas")]
+        [Authorize(Roles = "Portas")]
         public async Task<IActionResult> KulcsKiadas([FromBody] KulcsKiadasKeresDto dto)
         {
             var kulcs = await _context.Kulcsok.FindAsync(dto.KulcsID);
             if (kulcs == null || kulcs.KiadvaE)
                 return BadRequest("A kulcs nem található vagy már ki van adva.");
 
+            var ujAuditLog = new AuditLog
+            {
+                Muvelet = "Kulcs kiadása",
+                Reszletek = $"Terem/Kulcs ID: {dto.KulcsID} kiadva az oktatónak.",
+                UzemeltetesiIgazgatoID = dto.PortasID,
+                Idobelyeg = DateTime.UtcNow
+            };
+
             var mozgas = new KulcsMozgas
             {
                 KulcsID = dto.KulcsID,
                 AtvevoID = dto.OktatoID,
                 PortasID = dto.PortasID,
+                AuditLog = ujAuditLog,
                 Idobelyeg = DateTime.UtcNow
             };
 
@@ -123,6 +138,7 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("visszavetel/{kulcsId}")]
+        [Authorize(Roles = "Portas")]
         public async Task<IActionResult> KulcsVisszavetel(int kulcsId)
         {
             var kulcs = await _context.Kulcsok.FindAsync(kulcsId);
@@ -135,15 +151,63 @@ namespace WebApi.Controllers
             return Ok();
         }
 
-        [HttpGet("sajat-pin/{oktatoId}")]
-        public async Task<IActionResult> GetSajatPin(int oktatoId)
+        [HttpGet("virtualis-szekreny")]
+        [Authorize(Roles = "Portas,Adminisztrator")]
+        public async Task<IActionResult> GetVirtualisSzekreny()
         {
-            var oktato = await _context.Felhasznalok.FindAsync(oktatoId);
-            if (oktato == null || string.IsNullOrEmpty(oktato.PinKod))
-                return NotFound("A felhasználó vagy a PIN kód nem található.");
+            var mostUtc = DateTime.UtcNow;
 
-            return Ok(oktato.PinKod);
+            var kulcsok = await _context.Kulcsok
+                .Include(k => k.Terem)
+                .OrderBy(k => k.MesterkulcsE)
+                .ThenBy(k => k.Terem != null ? k.Terem.Teremszam : "")
+                .ToListAsync();
+
+            var aktivMozgasok = await _context.KulcsMozgasok
+                .Include(km => km.Atvevo)
+                .Where(km => km.Kulcs != null && km.Kulcs.KiadvaE)
+                .ToListAsync();
+
+            var szekrenyLista = new List<VirtualisKulcsDto>();
+
+            foreach (var k in kulcsok)
+            {
+                var aktivMozgas = aktivMozgasok.FirstOrDefault(km => km.KulcsID == k.KulcsID);
+                string statusz = "Bent";
+                string atvevoNev = "-";
+
+                if (k.KiadvaE && aktivMozgas != null)
+                {
+                    statusz = "Elvitt";
+                    atvevoNev = aktivMozgas.Atvevo?.Nev ?? "Ismeretlen";
+
+                    if (aktivMozgas.Idobelyeg.AddHours(4) < mostUtc)
+                    {
+                        statusz = "Késedelmes";
+                    }
+                }
+
+                string megnevezes = k.MesterkulcsE
+                    ? $"Mesterkulcs (ID: {k.KulcsID})"
+                    : $"Terem: {k.Terem?.Teremszam ?? "Ismeretlen"}";
+
+                szekrenyLista.Add(new VirtualisKulcsDto
+                {
+                    KulcsID = k.KulcsID,
+                    Megnevezes = megnevezes,
+                    Tipus = k.MesterkulcsE ? "Mesterkulcs" : "Teremkulcs",
+                    Statusz = statusz,
+                    AtvevoNev = atvevoNev
+                });
+            }
+
+            return Ok(szekrenyLista);
         }
+    }
+
+    public class PinKeresDto
+    {
+        public string PinKod { get; set; } = "";
     }
 
     public class KiadhatoKulcsDto
@@ -159,5 +223,14 @@ namespace WebApi.Controllers
         public int KulcsID { get; set; }
         public int OktatoID { get; set; }
         public int PortasID { get; set; }
+    }
+
+    public class VirtualisKulcsDto
+    {
+        public int KulcsID { get; set; }
+        public string Megnevezes { get; set; } = "";
+        public string Tipus { get; set; } = "";
+        public string Statusz { get; set; } = "";
+        public string AtvevoNev { get; set; } = "";
     }
 }

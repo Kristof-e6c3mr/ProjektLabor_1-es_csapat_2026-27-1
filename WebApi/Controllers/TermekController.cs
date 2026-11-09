@@ -24,6 +24,16 @@ namespace WebApi.Controllers
         {
             var termek = await _context.Termek
                 .Include(t => t.Felszereltsegek)
+                .Select(t => new
+                {
+                    TeremID = t.TeremID,
+                    Teremszam = t.Teremszam,
+                    Ferohely = t.Ferohely,
+                    // Itt a 'Nev' tulajdonságot kérjük le a modellből
+                    Felszereltsegek = t.Felszereltsegek != null
+                        ? t.Felszereltsegek.Select(f => f.Nev).ToList()
+                        : new List<string>()
+                })
                 .ToListAsync();
 
             return Ok(termek);
