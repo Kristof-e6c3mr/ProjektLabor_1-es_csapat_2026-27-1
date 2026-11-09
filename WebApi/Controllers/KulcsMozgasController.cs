@@ -45,6 +45,32 @@ namespace WebApi.Controllers
             return Ok(new { oktato.Id, oktato.Nev });
         }
 
+        // ÚJ VÉGPONT: Ellenőrzi, hogy van-e az oktatónál leadatlan kulcs
+        [HttpGet("tartozas/{oktatoId}")]
+        [Authorize(Roles = "Portas")]
+        public async Task<IActionResult> GetTartozas(int oktatoId)
+        {
+            var aktivMozgasok = await _context.KulcsMozgasok
+                .Include(km => km.Kulcs)
+                .ThenInclude(k => k.Terem)
+                .Where(km => km.Kulcs != null && km.Kulcs.KiadvaE)
+                .ToListAsync();
+
+            var tartozasok = aktivMozgasok
+                .GroupBy(km => km.KulcsID)
+                .Select(g => g.OrderByDescending(x => x.Idobelyeg).First())
+                .Where(km => km.AtvevoID == oktatoId)
+                .Select(km => new TartozasDto
+                {
+                    KulcsID = km.KulcsID,
+                    Megnevezes = km.Kulcs.MesterkulcsE ? $"Mesterkulcs (ID: {km.KulcsID})" : $"Terem: {km.Kulcs.Terem?.Teremszam}",
+                    Kiadva = km.Idobelyeg
+                })
+                .ToList();
+
+            return Ok(tartozasok);
+        }
+
         [HttpGet("kiadhato-kulcsok/{oktatoId}")]
         [Authorize(Roles = "Portas")]
         public async Task<IActionResult> GetKiadhatoKulcsok(int oktatoId)
@@ -185,7 +211,6 @@ namespace WebApi.Controllers
                     statusz = "Kiadva";
                     atvevoNev = aktivMozgas.Atvevo?.Nev ?? "Ismeretlen";
 
-                    // Ha lejárt a foglalás ideje, vagy már több mint 4 órája van kint (biztonsági tartalék)
                     var lejartFoglalas = maiFoglalasok.FirstOrDefault(f => f.TeremID == k.TeremID && f.OktatoID == aktivMozgas.AtvevoID && f.ZaroIdo < mostUtc);
                     if (lejartFoglalas != null || aktivMozgas.Idobelyeg.AddHours(4) < mostUtc)
                     {
@@ -196,7 +221,6 @@ namespace WebApi.Controllers
                 {
                     var teremFoglalasok = maiFoglalasok.Where(f => f.TeremID == k.TeremID).OrderBy(f => f.KezdoIdo).ToList();
 
-                    // Ha a foglalásnak már el kellett volna kezdődnie, de még mindig a szekrényben van a kulcs
                     var keso = teremFoglalasok.FirstOrDefault(f => f.KezdoIdo <= mostUtc && f.ZaroIdo > mostUtc);
                     if (keso != null)
                     {
@@ -204,7 +228,6 @@ namespace WebApi.Controllers
                     }
                     else
                     {
-                        // Ha a következő 30 percben kezdődik egy foglalás
                         var kozeli = teremFoglalasok.FirstOrDefault(f => f.KezdoIdo > mostUtc && f.KezdoIdo <= mostUtc.AddMinutes(30));
                         if (kozeli != null)
                         {
@@ -247,6 +270,13 @@ namespace WebApi.Controllers
         public int KulcsID { get; set; }
         public int OktatoID { get; set; }
         public int PortasID { get; set; }
+    }
+
+    public class TartozasDto
+    {
+        public int KulcsID { get; set; }
+        public string Megnevezes { get; set; } = "";
+        public DateTime Kiadva { get; set; }
     }
 
     public class VirtualisKulcsDto
