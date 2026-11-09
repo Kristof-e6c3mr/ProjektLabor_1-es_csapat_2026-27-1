@@ -109,7 +109,7 @@
 
         @if (UserSession.Role == "Adminisztrator")
         {
-            <!-- ADMINISZTRÁTOR: teremtörzs, kulcstörzs, mesterkulcs jogosultság, karbantartási idősáv -->
+            <!-- ADMINISZTRÁTOR: teremtörzs, kulcstörzs, mesterkulcs jogosultság, karbantartási idősáv, hibajegyek -->
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="termek">
                     <span class="bi bi-building" aria-hidden="true"></span> Termek kezelése
@@ -128,6 +128,11 @@
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="karbantartas">
                     <span class="bi bi-tools" aria-hidden="true"></span> Karbantartások
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin-hibajegyek">
+                    <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegyek kezelése
                 </NavLink>
             </div>
         }

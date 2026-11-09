@@ -1,13 +1,4 @@
-﻿<!--
-@page "/"
-
-<PageTitle>Home</PageTitle>
-
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
--->
-@page "/"
+﻿@page "/"
 @inject NavigationManager Navigation
 @inject ProjectLab1.Services.UserSessionService UserSession
 
@@ -41,6 +32,15 @@ else
                         </div>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-secondary shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-secondary">PIN-kód Lekérése</h5>
+                            <p class="card-text">Tekintse meg a kulcsátvételhez és azonosításhoz szükséges személyes PIN-kódját.</p>
+                            <a href="pin-lekerdezes" class="btn btn-secondary text-white">PIN-kód megtekintése</a>
+                        </div>
+                    </div>
+                </div>
             }
             else if (UserSession.Role == "Portas")
             {
@@ -56,9 +56,9 @@ else
                 <div class="col-md-6">
                     <div class="card h-100 border-warning shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title text-warning text-dark">Hibajegy Felvétele</h5>
+                            <h5 class="card-title text-warning fw-bold">Hibajegy Felvétele</h5>
                             <p class="card-text">Jelentse be a termekben vagy berendezésekben tapasztalt meghibásodásokat.</p>
-                            <a href="hibajegy" class="btn btn-warning">Új hibajegy</a>
+                            <a href="hibajegy" class="btn btn-warning text-dark">Új hibajegy</a>
                         </div>
                     </div>
                 </div>
@@ -68,7 +68,7 @@ else
                 <div class="col-md-6">
                     <div class="card h-100 border-info shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title text-dark">Teremtörzs Kezelése</h5>
+                            <h5 class="card-title text-info">Teremtörzs Kezelése</h5>
                             <p class="card-text">Új termek rögzítése, meglévők módosítása és törlése.</p>
                             <a href="termek" class="btn btn-info text-white">Termek kezelése</a>
                         </div>
@@ -77,7 +77,7 @@ else
                 <div class="col-md-6">
                     <div class="card h-100 border-info shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title text-dark">Kulcstörzs Kezelése</h5>
+                            <h5 class="card-title text-info">Kulcstörzs Kezelése</h5>
                             <p class="card-text">Sima és mesterkulcsok adatainak nyilvántartása és beállítása.</p>
                             <a href="kulcsok" class="btn btn-info text-white">Kulcsok kezelése</a>
                         </div>
@@ -98,6 +98,15 @@ else
                             <h5 class="card-title text-danger">Karbantartási Idősáv Kijelölése</h5>
                             <p class="card-text">Tervezett karbantartások rögzítése és az esetleges foglalási ütközések kezelése.</p>
                             <a href="karbantartas" class="btn btn-danger">Karbantartások kezelése</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 border-warning shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning fw-bold">Hibajegyek Kezelése</h5>
+                            <p class="card-text">Portások által bejelentett hibák listázása, állapotuk módosítása és törlése.</p>
+                            <a href="admin-hibajegyek" class="btn btn-warning text-dark">Hibajegyek kezelése</a>
                         </div>
                     </div>
                 </div>

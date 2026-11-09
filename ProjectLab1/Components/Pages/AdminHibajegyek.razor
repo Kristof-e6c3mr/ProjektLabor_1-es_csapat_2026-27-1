@@ -1,0 +1,151 @@
+﻿@page "/admin-hibajegyek"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Hibajegyek kezelése</PageTitle>
+
+<div class="container mt-4">
+    <h3>Beérkezett hibajegyek kezelése</h3>
+    <hr />
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger mb-4">@hibaUzenet</div>
+    }
+    @if (!string.IsNullOrEmpty(sikeresUzenet))
+    {
+        <div class="alert alert-success mb-4">@sikeresUzenet</div>
+    }
+
+    @if (hibak == null)
+    {
+        <p><em>Hibajegyek betöltése...</em></p>
+    }
+    else if (!hibak.Any())
+    {
+        <div class="alert alert-info">Jelenleg nincsenek rögzített hibajegyek a rendszerben.</div>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Terem</th>
+                    <th>Bejelentő (Portás)</th>
+                    <th>Hiba leírása</th>
+                    <th>Bejelentés ideje</th>
+                    <th>Állapot</th>
+                    <th>Műveletek</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var h in hibak)
+                {
+                    <tr>
+                        <td>@h.HibaID</td>
+                        <td class="fw-bold">@h.Teremszam</td>
+                        <td>@h.PortasNev</td>
+                        <td>@h.Leiras</td>
+                        <td>@h.LetrehozasDatuma.ToLocalTime().ToString("yyyy.MM.dd HH:mm")</td>
+                        <td>
+                            @if (h.Allapot)
+                            {
+                                <span class="badge bg-success">Javítva</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Folyamatban</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!h.Allapot)
+                            {
+                                <!-- ITT LETT ÁTÍRVA A GOMB SZÖVEGE -->
+                                <button class="btn btn-success btn-sm me-2" @onclick="() => StatuszModositas(h.HibaID, true)">Javítva</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-secondary btn-sm me-2" @onclick="() => StatuszModositas(h.HibaID, false)">Visszaállítás</button>
+                            }
+                            <button class="btn btn-danger btn-sm" @onclick="() => HibaTorlese(h.HibaID)">Törlés</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<HibaAdminDto>? hibak;
+    private string hibaUzenet = "";
+    private string sikeresUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
+        {
+            return;
+        }
+
+        await HibakBetoltese();
+    }
+
+    private async Task HibakBetoltese()
+    {
+        hibak = await HttpAccess.GetJsonAsync<List<HibaAdminDto>>(Http, Navigation, "api/hibak");
+    }
+
+    private async Task StatuszModositas(int hibaId, bool ujAllapot)
+    {
+        hibaUzenet = "";
+        sikeresUzenet = "";
+
+        var dto = new { Allapot = ujAllapot };
+        var response = await Http.PutAsJsonAsync($"api/hibak/{hibaId}/statusz", dto);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            sikeresUzenet = "A hibajegy állapota sikeresen frissítve!";
+            await HibakBetoltese();
+        }
+        else
+        {
+            hibaUzenet = "Hiba történt az állapot módosítása során.";
+        }
+    }
+
+    private async Task HibaTorlese(int id)
+    {
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", "Biztosan törölni szeretnéd ezt a hibajegyet?");
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/hibak/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+            if (response.IsSuccessStatusCode)
+            {
+                sikeresUzenet = "A hibajegy sikeresen törölve.";
+                await HibakBetoltese();
+            }
+            else
+            {
+                hibaUzenet = "Hiba történt a törlés során.";
+            }
+        }
+    }
+
+    public class HibaAdminDto
+    {
+        public int HibaID { get; set; }
+        public string Teremszam { get; set; } = "";
+        public string PortasNev { get; set; } = "";
+        public string Leiras { get; set; } = "";
+        public DateTime LetrehozasDatuma { get; set; }
+        public bool Allapot { get; set; }
+    }
+}
