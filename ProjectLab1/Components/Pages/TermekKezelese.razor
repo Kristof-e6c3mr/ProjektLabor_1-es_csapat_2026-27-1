@@ -1,4 +1,5 @@
 ﻿@page "/termek"
+@using System.Text.RegularExpressions
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -23,7 +24,8 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Férőhely</label>
-                    <input type="number" class="form-control" placeholder="Férőhely" min="0" @bind="ujTerem.Ferohely" disabled="@(szerkesztettTeremId > 0)" />
+                    <!-- Levettük a disabled attribútumot, így a férőhely szerkeszthető marad módosításkor is -->
+                    <input type="number" class="form-control" placeholder="Férőhely" min="0" @bind="ujTerem.Ferohely" />
                 </div>
             </div>
 
@@ -89,7 +91,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var terem in termek)
+                @foreach (var terem in RendezettTermek)
                 {
                     <tr>
                         <td>@terem.TeremID</td>
@@ -125,6 +127,32 @@
 
     private int szerkesztettTeremId = 0;
     private string hibaUzenet = "";
+
+    // Segédfüggvény a természetes sorrendhez
+    private string RendezesFormatum(string bemenet)
+    {
+        if (string.IsNullOrEmpty(bemenet)) return "";
+        return Regex.Replace(bemenet, @"\d+", m => m.Value.PadLeft(10, '0'));
+    }
+
+    // Termek listájának rendezése: PC0 -> I betűsök -> többi
+    private IEnumerable<TeremDto> RendezettTermek
+    {
+        get
+        {
+            if (termek == null)
+                return Array.Empty<TeremDto>();
+
+            return termek
+                .OrderBy(t =>
+                {
+                    if (t.Teremszam.StartsWith("PC0", StringComparison.OrdinalIgnoreCase)) return 0;
+                    if (t.Teremszam.StartsWith("I", StringComparison.OrdinalIgnoreCase)) return 1;
+                    return 2;
+                })
+                .ThenBy(t => RendezesFormatum(t.Teremszam));
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -180,7 +208,6 @@
             Allapot = terem.Allapot
         };
 
-        // Kigyűjtjük az elérhető felszereltségekből azoknak az ID-jét, amelyeknek a neve szerepel a terem felszereltségei között
         if (elerhetoFelszereltsegek != null)
         {
             kivalasztottFelszereltsegIds = elerhetoFelszereltsegek
@@ -218,13 +245,21 @@
 
     private async Task TeremTorlese(int id, string teremszam)
     {
+        hibaUzenet = "";
         bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd a(z) {teremszam} termet?");
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/termek/{id}");
             if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
-            if (response.IsSuccessStatusCode) await AdatokBetoltese();
-            else hibaUzenet = "Hiba történt a törlés során.";
+
+            if (response.IsSuccessStatusCode)
+            {
+                await AdatokBetoltese();
+            }
+            else
+            {
+                hibaUzenet = await response.Content.ReadAsStringAsync();
+            }
         }
     }
 
@@ -234,7 +269,6 @@
         public string Teremszam { get; set; } = "";
         public int Ferohely { get; set; }
         public bool Allapot { get; set; }
-        // Javítva string listára, amivel a backend küldi:
         public List<string> Felszereltsegek { get; set; } = new();
     }
 

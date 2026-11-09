@@ -40,6 +40,18 @@ namespace WebApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateKulcs([FromBody] UjKulcsDto dto)
         {
+            // Ellenőrzés: ha nem mesterkulcs, van-e már kulcs ehhez a teremhez
+            if (dto.TeremID > 0)
+            {
+                bool vanMarKulcs = await _context.Kulcsok
+                    .AnyAsync(k => k.TeremID == dto.TeremID && !k.MesterkulcsE);
+
+                if (vanMarKulcs)
+                {
+                    return BadRequest("Ehhez a teremhez már tartozik kulcs! Teremenként csak egy kulcs rögzíthető.");
+                }
+            }
+
             var kulcs = new Kulcs
             {
                 MesterkulcsE = dto.TeremID == 0,

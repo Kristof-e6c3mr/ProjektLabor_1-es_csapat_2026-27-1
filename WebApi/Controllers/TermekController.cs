@@ -9,7 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Bárki, aki be van jelentkezve, olvashatja a termeket[cite: 46]
+    [Authorize]
     public class TermekController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -30,8 +30,6 @@ namespace WebApi.Controllers
                     Teremszam = t.Teremszam,
                     Ferohely = t.Ferohely,
                     Allapot = t.Allapot,
-                    // Itt megint sima string listaként adjuk vissza a neveket, 
-                    // hogy a Foglalasok.razor-ban lévő szűrések ne törjenek el!
                     Felszereltsegek = t.Felszereltsegek != null
                         ? t.Felszereltsegek.Select(f => f.Nev).ToList()
                         : new List<string>()
@@ -42,19 +40,13 @@ namespace WebApi.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Adminisztrator")] // Csak admin rögzíthet[cite: 46]
+        [Authorize(Roles = "Adminisztrator")]
         public async Task<IActionResult> CreateTerem([FromBody] TeremInputDto dto)
         {
-            if (dto.Ferohely < 0)
-            {
-                return BadRequest("A férőhely nem lehet negatív!");
-            }
+            if (dto.Ferohely < 0) return BadRequest("A férőhely nem lehet negatív!");
 
             bool letezik = await _context.Termek.AnyAsync(t => t.Teremszam == dto.Teremszam);
-            if (letezik)
-            {
-                return BadRequest("Ez a teremszám már létezik!");
-            }
+            if (letezik) return BadRequest("Ez a teremszám már létezik!");
 
             var terem = new Terem
             {
@@ -76,7 +68,7 @@ namespace WebApi.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Adminisztrator")] // Csak admin módosíthat
+        [Authorize(Roles = "Adminisztrator")]
         public async Task<IActionResult> UpdateTerem(int id, [FromBody] TeremInputDto dto)
         {
             var terem = await _context.Termek
@@ -84,19 +76,12 @@ namespace WebApi.Controllers
                 .FirstOrDefaultAsync(t => t.TeremID == id);
 
             if (terem == null) return NotFound("A terem nem található.");
+            if (dto.Ferohely < 0) return BadRequest("A férőhely nem lehet negatív!");
 
-            if (dto.Ferohely < 0)
-            {
-                return BadRequest("A férőhely nem lehet negatív!");
-            }
-
-            // Megjegyzés: A teremszámot és férőhelyet a frontend oldalon letiltottuk, 
-            // de itt biztonság kedvéért frissítjük vagy hagyjuk.
             terem.Teremszam = dto.Teremszam;
             terem.Ferohely = dto.Ferohely;
             terem.Allapot = dto.Allapot;
 
-            // Felszereltségek frissítése a pipák (ID-k) alapján, amit az admin beállított
             terem.Felszereltsegek.Clear();
             if (dto.FelszereltsegIDs != null && dto.FelszereltsegIDs.Any())
             {
@@ -115,11 +100,26 @@ namespace WebApi.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Adminisztrator")] // Csak admin törölhet[cite: 46]
+        [Authorize(Roles = "Adminisztrator")]
         public async Task<IActionResult> DeleteTerem(int id)
         {
-            var terem = await _context.Termek.FindAsync(id);
+            var terem = await _context.Termek
+                .Include(t => t.Felszereltsegek)
+                .Include(t => t.Kulcsok)
+                .Include(t => t.Foglalasok)
+                .Include(t => t.KarbantartasiIdosavok)
+                .Include(t => t.Hibak)
+                .FirstOrDefaultAsync(t => t.TeremID == id);
+
             if (terem == null) return NotFound();
+
+            if (terem.Kulcsok.Any()) return BadRequest("A terem nem törölhető, mert tartozik hozzá kulcs!");
+            if (terem.Foglalasok.Any()) return BadRequest("A terem nem törölhető, mert vannak hozzá rögzített foglalások!");
+            if (terem.KarbantartasiIdosavok.Any()) return BadRequest("A terem nem törölhető, mert tartozik hozzá karbantartási idősáv!");
+            if (terem.Hibak.Any()) return BadRequest("A terem nem törölhető, mert be van jelentve hozzá hiba!");
+
+            // Leválasztjuk a felszereltségeket a teremről törlés előtt
+            terem.Felszereltsegek.Clear();
 
             _context.Termek.Remove(terem);
             await _context.SaveChangesAsync();
@@ -127,7 +127,6 @@ namespace WebApi.Controllers
         }
     }
 
-    // Ez az egyetlen segédosztály, ami a frontendről jövő adatokat fogadja (Admin felület)
     public class TeremInputDto
     {
         public string Teremszam { get; set; } = "";

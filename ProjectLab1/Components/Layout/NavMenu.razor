@@ -105,6 +105,11 @@
                     <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegy felvétele
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="szekreny">
+                    <span class="bi bi-grid-3x3-gap" aria-hidden="true"></span> Kulcsszekrény
+                </NavLink>
+            </div>
         }
 
         @if (UserSession.Role == "Adminisztrator")
@@ -134,7 +139,11 @@
                 <NavLink class="nav-link" href="admin-hibajegyek">
                     <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegyek kezelése
                 </NavLink>
-            </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="felszereltsegek">
+                        <span class="bi bi-tools" aria-hidden="true"></span> Felszereltségek
+                    </NavLink>
+                </div>
         }
 
         @if (UserSession.Role == "UzemeltetesiIgazgato")

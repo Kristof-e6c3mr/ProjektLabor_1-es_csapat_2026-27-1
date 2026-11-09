@@ -1,4 +1,5 @@
 ﻿@page "/kulcsok"
+@using System.Text.RegularExpressions
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
@@ -16,12 +17,9 @@
             <input type="text" class="form-control" list="teremList" @bind="kivalasztottTerem" placeholder="Kezdj el gépelni vagy válassz a listából..." />
             <datalist id="teremList">
                 <option value="Mesterkulcs">Mesterkulcs (nincs teremhez rendelve)</option>
-                @if (termek != null)
+                @foreach (var terem in ElerhetoTermek)
                 {
-                    @foreach (var terem in termek)
-                    {
-                        <option value="@terem.Teremszam">@terem.Teremszam</option>
-                    }
+                    <option value="@terem.Teremszam">@terem.Teremszam</option>
                 }
             </datalist>
         </div>
@@ -64,7 +62,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var kulcs in kulcsok)
+                @foreach (var kulcs in RendezettKulcsok)
                 {
                     <tr>
                         <td>@kulcs.KulcsID</td>
@@ -102,10 +100,56 @@
 @code {
     private List<KulcsListaDto>? kulcsok;
     private List<TeremDto>? termek;
-    
-    private string kivalasztottTerem = ""; 
+
+    private string kivalasztottTerem = "";
     private string hibaUzenet = "";
     private string sikeresUzenet = "";
+
+    private string RendezesFormatum(string bemenet)
+    {
+        if (string.IsNullOrEmpty(bemenet)) return "";
+        return Regex.Replace(bemenet, @"\d+", m => m.Value.PadLeft(10, '0'));
+    }
+
+    // Legördülő szűrése és rendezése: PC0 -> I betűsök -> többi
+    private IEnumerable<TeremDto> ElerhetoTermek
+    {
+        get
+        {
+            if (termek == null || kulcsok == null)
+                return new List<TeremDto>();
+
+            return termek
+                            .Where(t => !kulcsok.Any(k => k.Teremszam == t.Teremszam && !k.MesterkulcsE))
+                            .OrderBy(t =>
+                            {
+                                if (t.Teremszam.StartsWith("PC0", StringComparison.OrdinalIgnoreCase)) return 0;
+                                if (t.Teremszam.StartsWith("I", StringComparison.OrdinalIgnoreCase)) return 1;
+                                return 2;
+                            })
+                            .ThenBy(t => RendezesFormatum(t.Teremszam));
+        }
+    }
+
+    // Kulcstörzs listájának rendezése: Mesterkulcs -> PC0 -> I betűsök -> többi
+    private IEnumerable<KulcsListaDto> RendezettKulcsok
+    {
+        get
+        {
+            if (kulcsok == null)
+                return Array.Empty<KulcsListaDto>();
+
+            return kulcsok
+                .OrderBy(k =>
+                {
+                    if (k.MesterkulcsE) return 0;
+                    if (k.Teremszam.StartsWith("PC0", StringComparison.OrdinalIgnoreCase)) return 1;
+                    if (k.Teremszam.StartsWith("I", StringComparison.OrdinalIgnoreCase)) return 2;
+                    return 3;
+                })
+                .ThenBy(k => RendezesFormatum(k.Teremszam));
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,16 +190,16 @@
 
         if (response.IsSuccessStatusCode)
         {
-            sikeresUzenet = valasztottTeremID == 0 
-                ? "Mesterkulcs sikeresen felvéve!" 
+            sikeresUzenet = valasztottTeremID == 0
+                ? "Mesterkulcs sikeresen felvéve!"
                 : $"A(z) {kivalasztottTerem} terem kulcsa sikeresen felvéve!";
-                
-            kivalasztottTerem = ""; 
+
+            kivalasztottTerem = "";
             await AdatokBetoltese();
         }
         else
         {
-            hibaUzenet = "Váratlan hiba történt a kulcs mentésekor.";
+            hibaUzenet = await response.Content.ReadAsStringAsync();
         }
     }
 
@@ -163,13 +207,13 @@
     {
         hibaUzenet = "";
         sikeresUzenet = "";
-        
-        string uzenet = mesterkulcs && teremszam == "-" 
-            ? "ezt a mesterkulcsot" 
-            : $"a(z) {teremszam} terem kulcsát";
-            
+
+        string uzenet = mesterkulcs && teremszam == "-"
+                    ? "ezt a mesterkulcsot"
+                    : $"a(z) {teremszam} terem kulcsát";
+
         bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd {uzenet}?");
-        
+
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/kulcsok/{id}");

@@ -156,16 +156,20 @@ namespace WebApi.Controllers
         public async Task<IActionResult> GetVirtualisSzekreny()
         {
             var mostUtc = DateTime.UtcNow;
+            var maKezdet = mostUtc.Date;
+            var maVeg = maKezdet.AddDays(1);
 
             var kulcsok = await _context.Kulcsok
                 .Include(k => k.Terem)
-                .OrderBy(k => k.MesterkulcsE)
-                .ThenBy(k => k.Terem != null ? k.Terem.Teremszam : "")
                 .ToListAsync();
 
             var aktivMozgasok = await _context.KulcsMozgasok
                 .Include(km => km.Atvevo)
                 .Where(km => km.Kulcs != null && km.Kulcs.KiadvaE)
+                .ToListAsync();
+
+            var maiFoglalasok = await _context.Foglalasok
+                .Where(f => f.KezdoIdo >= maKezdet && f.KezdoIdo < maVeg && f.Allapot != "Torolve")
                 .ToListAsync();
 
             var szekrenyLista = new List<VirtualisKulcsDto>();
@@ -178,26 +182,46 @@ namespace WebApi.Controllers
 
                 if (k.KiadvaE && aktivMozgas != null)
                 {
-                    statusz = "Elvitt";
+                    statusz = "Kiadva";
                     atvevoNev = aktivMozgas.Atvevo?.Nev ?? "Ismeretlen";
 
-                    if (aktivMozgas.Idobelyeg.AddHours(4) < mostUtc)
+                    // Ha lejárt a foglalás ideje, vagy már több mint 4 órája van kint (biztonsági tartalék)
+                    var lejartFoglalas = maiFoglalasok.FirstOrDefault(f => f.TeremID == k.TeremID && f.OktatoID == aktivMozgas.AtvevoID && f.ZaroIdo < mostUtc);
+                    if (lejartFoglalas != null || aktivMozgas.Idobelyeg.AddHours(4) < mostUtc)
                     {
-                        statusz = "Késedelmes";
+                        statusz = "Késik";
+                    }
+                }
+                else if (!k.KiadvaE && !k.MesterkulcsE)
+                {
+                    var teremFoglalasok = maiFoglalasok.Where(f => f.TeremID == k.TeremID).OrderBy(f => f.KezdoIdo).ToList();
+
+                    // Ha a foglalásnak már el kellett volna kezdődnie, de még mindig a szekrényben van a kulcs
+                    var keso = teremFoglalasok.FirstOrDefault(f => f.KezdoIdo <= mostUtc && f.ZaroIdo > mostUtc);
+                    if (keso != null)
+                    {
+                        statusz = "Késő felvétel";
+                    }
+                    else
+                    {
+                        // Ha a következő 30 percben kezdődik egy foglalás
+                        var kozeli = teremFoglalasok.FirstOrDefault(f => f.KezdoIdo > mostUtc && f.KezdoIdo <= mostUtc.AddMinutes(30));
+                        if (kozeli != null)
+                        {
+                            statusz = "Közeli foglalás";
+                        }
                     }
                 }
 
-                string megnevezes = k.MesterkulcsE
-                    ? $"Mesterkulcs (ID: {k.KulcsID})"
-                    : $"Terem: {k.Terem?.Teremszam ?? "Ismeretlen"}";
-
+                string teremszam = k.Terem?.Teremszam ?? "";
                 szekrenyLista.Add(new VirtualisKulcsDto
                 {
                     KulcsID = k.KulcsID,
-                    Megnevezes = megnevezes,
-                    Tipus = k.MesterkulcsE ? "Mesterkulcs" : "Teremkulcs",
+                    Megnevezes = k.MesterkulcsE ? $"Mesterkulcs (ID: {k.KulcsID})" : teremszam,
                     Statusz = statusz,
-                    AtvevoNev = atvevoNev
+                    AtvevoNev = atvevoNev,
+                    Teremszam = teremszam,
+                    MesterkulcsE = k.MesterkulcsE
                 });
             }
 
@@ -229,8 +253,9 @@ namespace WebApi.Controllers
     {
         public int KulcsID { get; set; }
         public string Megnevezes { get; set; } = "";
-        public string Tipus { get; set; } = "";
         public string Statusz { get; set; } = "";
         public string AtvevoNev { get; set; } = "";
+        public string Teremszam { get; set; } = "";
+        public bool MesterkulcsE { get; set; }
     }
 }
