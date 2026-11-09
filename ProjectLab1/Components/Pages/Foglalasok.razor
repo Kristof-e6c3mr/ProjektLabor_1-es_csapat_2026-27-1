@@ -159,7 +159,8 @@
     private List<FoglalasListaDto>? foglalasok;
     private List<TeremDto>? termek;
     private List<TeremDto>? szurtTermekLista = new();
-    private List<string> elerhetoFelszereltsegek = new() { "Projektor", "Okostábla", "Számítógépek", "Labor" };
+
+    private List<string>? elerhetoFelszereltsegek;
     private List<string> kivalasztottFelszereltsegek = new();
 
     private int kivalasztottTeremId = 0;
@@ -205,7 +206,14 @@
     private async Task AdatokBetoltese()
     {
         termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
-        szurtTermekLista = termek ?? new(); // Biztosítjuk, hogy ne legyen üres a legördülő!
+        szurtTermekLista = termek ?? new();
+
+        var felszerelesDtoList = await HttpAccess.GetJsonAsync<List<FelszereltsegNevDto>>(Http, Navigation, "api/felszereltseg");
+        if (felszerelesDtoList != null)
+        {
+            elerhetoFelszereltsegek = felszerelesDtoList.Select(f => f.Nev).ToList();
+        }
+
         foglalasok = await HttpAccess.GetJsonAsync<List<FoglalasListaDto>>(Http, Navigation, $"api/foglalasok/sajat/{bejelentkezettOktatoId}");
     }
 
@@ -325,5 +333,11 @@
         public string Teremszam { get; set; } = "";
         public int Ferohely { get; set; }
         public List<string> Felszereltsegek { get; set; } = new();
+    }
+
+    public class FelszereltsegNevDto
+    {
+        public int FelszereltsegID { get; set; }
+        public string Nev { get; set; } = "";
     }
 }

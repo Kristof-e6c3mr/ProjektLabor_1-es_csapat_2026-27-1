@@ -10,23 +10,61 @@
     <h3>Termek törzsadatai</h3>
     <hr />
 
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <input type="text" class="form-control" placeholder="Teremszám (pl. I102)" @bind="ujTerem.Teremszam" />
+    <!-- ÚJ TEREM / MÓDOSÍTÁS ŰRLAP -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header @(szerkesztettTeremId > 0 ? "bg-warning text-dark" : "bg-primary text-white")">
+            <h5 class="mb-0">@(szerkesztettTeremId > 0 ? $"Terem szerkesztése: {ujTerem.Teremszam}" : "Új terem felvitele")</h5>
         </div>
-        <div class="col-md-3">
-            <input type="number" class="form-control" placeholder="Férőhely" min="0" @bind="ujTerem.Ferohely" />
-        </div>
-        <div class="col-md-3">
-            <button class="btn btn-success" @onclick="TeremHozzaadasa">Új terem felvitele</button>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Teremszám</label>
+                    <input type="text" class="form-control" placeholder="pl. I102" @bind="ujTerem.Teremszam" disabled="@(szerkesztettTeremId > 0)" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Férőhely</label>
+                    <input type="number" class="form-control" placeholder="Férőhely" min="0" @bind="ujTerem.Ferohely" disabled="@(szerkesztettTeremId > 0)" />
+                </div>
+            </div>
+
+            <!-- FELSZERELTSÉGEK CHECKBOX LISTA -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Felszereltségek:</label>
+                <div class="d-flex flex-wrap gap-3 p-3 border rounded bg-light">
+                    @if (elerhetoFelszereltsegek != null)
+                    {
+                        @foreach (var f in elerhetoFelszereltsegek)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="felszereles_@f.FelszereltsegID"
+                                       checked="@kivalasztottFelszereltsegIds.Contains(f.FelszereltsegID)"
+                                       @onchange="(e => FelszereltsegValtas(f.FelszereltsegID, e.Value))" />
+                                <label class="form-check-label" for="felszereles_@f.FelszereltsegID">
+                                    @f.Nev
+                                </label>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                @if (szerkesztettTeremId == 0)
+                {
+                    <button class="btn btn-success" @onclick="TeremHozzaadasa">Új terem felvitele</button>
+                }
+                else
+                {
+                    <button class="btn btn-warning" @onclick="TeremModositas">Módosítás mentése</button>
+                    <button class="btn btn-secondary" @onclick="MentesMegsem">Mégsem</button>
+                }
+            </div>
         </div>
     </div>
 
     @if (!string.IsNullOrEmpty(hibaUzenet))
     {
-        <div class="alert alert-danger mb-4">
-            @hibaUzenet
-        </div>
+        <div class="alert alert-danger mb-4">@hibaUzenet</div>
     }
 
     @if (termek == null)
@@ -39,12 +77,13 @@
     }
     else
     {
-        <table class="table table-striped">
+        <table class="table table-striped align-middle">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Teremszám</th>
                     <th>Férőhely</th>
+                    <th>Felszereltségek</th>
                     <th>Állapot</th>
                     <th>Műveletek</th>
                 </tr>
@@ -54,10 +93,21 @@
                 {
                     <tr>
                         <td>@terem.TeremID</td>
-                        <td>@terem.Teremszam</td>
-                        <td>@terem.Ferohely</td>
+                        <td class="fw-bold">@terem.Teremszam</td>
+                        <td>@terem.Ferohely fő</td>
+                        <td>
+                            @if (terem.Felszereltsegek != null && terem.Felszereltsegek.Any())
+                            {
+                                @string.Join(", ", terem.Felszereltsegek)
+                            }
+                            else
+                            {
+                                <span class="text-muted">Nincs</span>
+                            }
+                        </td>
                         <td>@(terem.Allapot ? "Aktív" : "Inaktív")</td>
                         <td>
+                            <button class="btn btn-warning btn-sm me-2" @onclick="() => SzerkesztesMegnyitasa(terem)">Módosítás</button>
                             <button class="btn btn-danger btn-sm" @onclick="() => TeremTorlese(terem.TeremID, terem.Teremszam)">Törlés</button>
                         </td>
                     </tr>
@@ -69,78 +119,136 @@
 
 @code {
     private List<TeremDto>? termek;
-    private TeremDto ujTerem = new TeremDto { Allapot = true };
+    private List<FelszereltsegDto>? elerhetoFelszereltsegek;
+    private TeremInputDto ujTerem = new() { Allapot = true };
+    private List<int> kivalasztottFelszereltsegIds = new();
+
+    private int szerkesztettTeremId = 0;
     private string hibaUzenet = "";
 
     protected override async Task OnInitializedAsync()
     {
-        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator"))
-        {
-            return;
-        }
-
-        await TermekBetoltese();
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator")) return;
+        await AdatokBetoltese();
     }
 
-    private async Task TermekBetoltese()
+    private async Task AdatokBetoltese()
     {
         termek = await HttpAccess.GetJsonAsync<List<TeremDto>>(Http, Navigation, "api/termek");
+        elerhetoFelszereltsegek = await HttpAccess.GetJsonAsync<List<FelszereltsegDto>>(Http, Navigation, "api/felszereltseg");
+    }
+
+    private void FelszereltsegValtas(int felszereltsegId, object? isChecked)
+    {
+        if (isChecked is bool checkedValue)
+        {
+            if (checkedValue && !kivalasztottFelszereltsegIds.Contains(felszereltsegId))
+            {
+                kivalasztottFelszereltsegIds.Add(felszereltsegId);
+            }
+            else if (!checkedValue && kivalasztottFelszereltsegIds.Contains(felszereltsegId))
+            {
+                kivalasztottFelszereltsegIds.Remove(felszereltsegId);
+            }
+        }
     }
 
     private async Task TeremHozzaadasa()
     {
         hibaUzenet = "";
+        if (string.IsNullOrWhiteSpace(ujTerem.Teremszam)) { hibaUzenet = "A teremszám megadása kötelező!"; return; }
 
-        if (string.IsNullOrWhiteSpace(ujTerem.Teremszam))
-        {
-            hibaUzenet = "A teremszám megadása kötelező!";
-            return;
-        }
-
-        if (ujTerem.Ferohely < 0 || ujTerem.Ferohely > 250)
-        {
-            hibaUzenet = "A férőhely 0 és 250 fő között kell legyen!";
-            return;
-        }
-
+        ujTerem.FelszereltsegIDs = kivalasztottFelszereltsegIds;
         var response = await Http.PostAsJsonAsync("api/termek", ujTerem);
         if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
 
         if (response.IsSuccessStatusCode)
         {
-            ujTerem = new TeremDto { Allapot = true };
-            await TermekBetoltese();
+            MentesMegsem();
+            await AdatokBetoltese();
         }
-        else
+        else { hibaUzenet = await response.Content.ReadAsStringAsync(); }
+    }
+
+    private void SzerkesztesMegnyitasa(TeremDto terem)
+    {
+        szerkesztettTeremId = terem.TeremID;
+        ujTerem = new TeremInputDto
         {
-            hibaUzenet = await response.Content.ReadAsStringAsync();
+            Teremszam = terem.Teremszam,
+            Ferohely = terem.Ferohely,
+            Allapot = terem.Allapot
+        };
+
+        // Kigyűjtjük az elérhető felszereltségekből azoknak az ID-jét, amelyeknek a neve szerepel a terem felszereltségei között
+        if (elerhetoFelszereltsegek != null)
+        {
+            kivalasztottFelszereltsegIds = elerhetoFelszereltsegek
+                .Where(ef => terem.Felszereltsegek.Contains(ef.Nev))
+                .Select(ef => ef.FelszereltsegID)
+                .ToList();
         }
+
+        hibaUzenet = "";
+    }
+
+    private async Task TeremModositas()
+    {
+        hibaUzenet = "";
+        ujTerem.FelszereltsegIDs = kivalasztottFelszereltsegIds;
+
+        var response = await Http.PutAsJsonAsync($"api/termek/{szerkesztettTeremId}", ujTerem);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            MentesMegsem();
+            await AdatokBetoltese();
+        }
+        else { hibaUzenet = await response.Content.ReadAsStringAsync(); }
+    }
+
+    private void MentesMegsem()
+    {
+        szerkesztettTeremId = 0;
+        ujTerem = new() { Allapot = true };
+        kivalasztottFelszereltsegIds.Clear();
+        hibaUzenet = "";
     }
 
     private async Task TeremTorlese(int id, string teremszam)
     {
         bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd a(z) {teremszam} termet?");
-        
         if (megerositve)
         {
             var response = await Http.DeleteAsync($"api/termek/{id}");
             if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
-            if (response.IsSuccessStatusCode)
-            {
-                await TermekBetoltese();
-            }
-            else
-            {
-                hibaUzenet = "Hiba történt a törlés során.";
-            }
+            if (response.IsSuccessStatusCode) await AdatokBetoltese();
+            else hibaUzenet = "Hiba történt a törlés során.";
         }
     }
 
     public class TeremDto
     {
         public int TeremID { get; set; }
-        public string Teremszam { get; set; } = string.Empty;
+        public string Teremszam { get; set; } = "";
         public int Ferohely { get; set; }
-        public bool Allapot { get; set; } = true;
+        public bool Allapot { get; set; }
+        // Javítva string listára, amivel a backend küldi:
+        public List<string> Felszereltsegek { get; set; } = new();
+    }
+
+    public class TeremInputDto
+    {
+        public string Teremszam { get; set; } = "";
+        public int Ferohely { get; set; }
+        public bool Allapot { get; set; }
+        public List<int> FelszereltsegIDs { get; set; } = new();
+    }
+
+    public class FelszereltsegDto
+    {
+        public int FelszereltsegID { get; set; }
+        public string Nev { get; set; } = "";
     }
 }
