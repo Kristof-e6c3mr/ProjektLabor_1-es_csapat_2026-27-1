@@ -44,8 +44,6 @@ namespace WebApi.Tests
                     using var scope = sp.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    // Inicializáljuk a memóriabeli adatbázist a meglévő DbInitializer segítségével,
-                    // ami létrehoz alapértelmezett hibajegyeket is (pl. I1 és PC0 termekhez).
                     DbInitializer.Initialize(db);
                 });
             });
@@ -74,7 +72,7 @@ namespace WebApi.Tests
             var hibak = await response.Content.ReadFromJsonAsync<List<HibaAdminDto>>();
 
             Assert.NotNull(hibak);
-            Assert.NotEmpty(hibak); // A DbInitializer miatt lennie kell benne hibának
+            Assert.NotEmpty(hibak);
         }
 
         [Fact]
@@ -84,19 +82,16 @@ namespace WebApi.Tests
             var token = await BejelentkezesAsync(client, AdminEmail, SeedPassword);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // 1. Lekérjük a meglévő hibákat, hogy kapjunk egy érvényes ID-t
             var hibak = await client.GetFromJsonAsync<List<HibaAdminDto>>("/api/hibak");
             Assert.NotNull(hibak);
             var tesztHiba = hibak.First();
-            var ujAllapot = !tesztHiba.Allapot; // Invertáljuk a jelenlegi állapotot
+            var ujAllapot = !tesztHiba.Allapot;
 
-            // 2. Módosítjuk a státuszt
             var dto = new StatuszModositasDto { Allapot = ujAllapot };
             var response = await client.PutAsJsonAsync($"/api/hibak/{tesztHiba.HibaID}/statusz", dto);
 
             Assert.True(response.IsSuccessStatusCode);
 
-            // 3. Visszaellenőrizzük, hogy tényleg megváltozott-e
             var frissitettHibak = await client.GetFromJsonAsync<List<HibaAdminDto>>("/api/hibak");
             var ellenorzesHiba = frissitettHibak!.First(h => h.HibaID == tesztHiba.HibaID);
 
@@ -118,7 +113,6 @@ namespace WebApi.Tests
 
             Assert.True(deleteResponse.IsSuccessStatusCode);
 
-            // Ellenőrizzük, hogy eltűnt-e a listából
             var maradekHibak = await client.GetFromJsonAsync<List<HibaAdminDto>>("/api/hibak");
             Assert.DoesNotContain(maradekHibak!, h => h.HibaID == torlendoHiba.HibaID);
         }
@@ -127,14 +121,10 @@ namespace WebApi.Tests
         public async Task HibakLekerdezese_JogosulatlanSzerepkorrel_403asValasztAd()
         {
             var client = _factory.CreateClient();
-            // Oktató nem férhet hozzá az admin hibajegyekhez
             var token = await BejelentkezesAsync(client, OktatoEmail, SeedPassword);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await client.GetAsync("/api/hibak");
-
-            // A backend implementációjától függően ez lehet 403 Forbidden is. 
-            // Cseréld ki az Assertet aszerint, ahogy az Auth guard be van állítva a kontrollerben.
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
 
