@@ -20,7 +20,7 @@ namespace WebApi.Tests
         private const string AdminEmail = "admin@uni.hu";
         private const string OktatoEmail = "kiss.o@uni.hu";
 
-        public HibaJegyTests(WebApplicationFactory<Program> factory)
+        public AdminHibaJegyTests(WebApplicationFactory<Program> factory)
         {
             string dbName = "TestDb_Hiba_" + Guid.NewGuid();
 
