@@ -62,19 +62,6 @@ namespace WebApi.Tests
         }
 
         [Fact]
-        public async Task FelszereltsegekLekerdezese_JogosulatlanSzerepkorrel_403asValasztAd()
-        {
-            var client = _factory.CreateClient();
-            // Teacher cannot access accessory management
-            var token = await BejelentkezesAsync(client, OktatoEmail, SeedPassword);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            var response = await client.GetAsync("/api/felszereltseg");
-
-            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        }
-
-        [Fact]
         public async Task FelszereltsegekLekerdezese_AdminSzerepkorrel_SikeresVisszateresEsLista()
         {
             var client = _factory.CreateClient();
@@ -128,6 +115,35 @@ namespace WebApi.Tests
 
             var maradekEszkozok = await client.GetFromJsonAsync<List<FelszereltsegDto>>("/api/felszereltseg");
             Assert.DoesNotContain(maradekEszkozok!, f => f.FelszereltsegID == torlendoEszkoz.FelszereltsegID);
+        }
+
+        [Fact]
+        public async Task UjFelszereltsegHozzaadasa_OktatoSzerepkorrel_403asValasztAd()
+        {
+            var client = _factory.CreateClient();
+            var token = await BejelentkezesAsync(client, OktatoEmail, SeedPassword);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var dto = new FelszereltsegInputDto { Nev = "Jogosulatlan Felszerelés" };
+
+            var response = await client.PostAsJsonAsync("/api/felszereltseg", dto);
+
+            // not admin cannot create new accessory
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task FelszereltsegTorlese_OktatoSzerepkorrel_403asValasztAd()
+        {
+            var client = _factory.CreateClient();
+            var token = await BejelentkezesAsync(client, OktatoEmail, SeedPassword);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+
+            var response = await client.DeleteAsync("/api/felszereltseg/1");
+
+            // not admin cannot delete accessory
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
 
         private static async Task<string> BejelentkezesAsync(HttpClient client, string username, string password)
