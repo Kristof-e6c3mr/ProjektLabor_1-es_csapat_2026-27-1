@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.JSInterop;
 using ProjectLab1.Components;
 using ProjectLab1.Services;
 
@@ -11,6 +14,10 @@ var apiUrl = builder.Configuration["ApiBaseUrl"] ?? "http://webapi:8080/";
 // 1. A session kezelőnek SCOPED-nak kell lennie Blazor Serverben, 
 // különben minden csatlakozó felhasználó megosztaná ugyanazt a bejelentkezést!
 builder.Services.AddScoped<UserSessionService>();
+builder.Services.AddDataProtection();
+builder.Services.AddScoped(sp => new ProtectedLocalStorage(
+    sp.GetRequiredService<IJSRuntime>(),
+    sp.GetRequiredService<IDataProtectionProvider>()));
 
 // 2. Közvetlen, biztonságos HttpClient regisztráció (az IHttpClientFactory időtúllépési bugjainak elkerülésére)
 builder.Services.AddScoped(sp =>

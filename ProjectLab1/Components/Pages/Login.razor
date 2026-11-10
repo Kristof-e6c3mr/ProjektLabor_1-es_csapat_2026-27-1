@@ -55,6 +55,7 @@
                 {
                     // Visszaállítva a stabil szinkron memóriahívásra
                     UserSession.SetUser(result.Id, result.Username, result.Token, result.Role);
+                    await UserSession.PersistAsync();
                     Navigation.NavigateTo("/");
                     return;
                 }

@@ -21,13 +21,21 @@ namespace ProjectLab1.Services
 
         public static bool RedirectIfDenied(HttpResponseMessage response, NavigationManager navigation)
         {
-            if (response.StatusCode is not (HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden))
+            // 401: a bejelentkezés érvénytelen/lejárt (a handler már kijelentkeztetett)
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                return false;
+                navigation.NavigateTo("/login");
+                return true;
             }
 
-            navigation.NavigateTo("/forbidden");
-            return true;
+            // 403: be van jelentkezve, de nincs jogosultsága – a fiók megmarad
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                navigation.NavigateTo("/forbidden");
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -9,6 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class KulcsMozgasController : ControllerBase
     {
         private readonly AppDbContext _context;

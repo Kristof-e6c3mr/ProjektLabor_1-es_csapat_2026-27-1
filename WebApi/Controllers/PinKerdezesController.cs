@@ -8,6 +8,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PinKerdezesController : ControllerBase
     {
         private readonly AppDbContext _context;

@@ -9,6 +9,7 @@ namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class HibakController : ControllerBase
     {
         private readonly AppDbContext _context;
