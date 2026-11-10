@@ -1,0 +1,96 @@
+﻿@page "/riportok"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Riportok & Elemzések</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Rendszer Audit Logok & Riportok</h3>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="AdatokBetoltese">
+            <span class="bi bi-arrow-clockwise"></span> Frissítés
+        </button>
+    </div>
+    <hr />
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger mb-4">@hibaUzenet</div>
+    }
+
+    @if (auditLogok == null)
+    {
+        <p><em>Eseménynaplók betöltése...</em></p>
+    }
+    else if (!auditLogok.Any())
+    {
+        <div class="alert alert-info">Jelenleg nincsenek rögzített eseménynaplók a rendszerben.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Időpont</th>
+                            <th>Művelet típusa</th>
+                            <th>Részletek</th>
+                            <th>Felelős / Üzemeltető</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in auditLogok)
+                        {
+                            <tr>
+                                <td>@log.NaploID</td>
+                                <td>@log.Idobelyeg.ToLocalTime().ToString("yyyy. MM. dd. HH:mm:ss")</td>
+                                <td><span class="badge bg-primary">@log.Muvelet</span></td>
+                                <td>@log.Reszletek</td>
+                                <td class="fw-bold">@log.FelelosNev</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<AuditLogDto>? auditLogok;
+    private string hibaUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "UzemeltetesiIgazgato"))
+        {
+            return;
+        }
+
+        await AdatokBetoltese();
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        try
+        {
+            auditLogok = await HttpAccess.GetJsonAsync<List<AuditLogDto>>(Http, Navigation, "api/auditlog");
+        }
+        catch (Exception)
+        {
+            hibaUzenet = "Nem sikerült betölteni az eseménynlókat a szerverről.";
+        }
+    }
+
+    public class AuditLogDto
+    {
+        public int NaploID { get; set; }
+        public DateTime Idobelyeg { get; set; }
+        public string Muvelet { get; set; } = "";
+        public string Reszletek { get; set; } = "";
+        public string FelelosNev { get; set; } = "";
+    }
+}

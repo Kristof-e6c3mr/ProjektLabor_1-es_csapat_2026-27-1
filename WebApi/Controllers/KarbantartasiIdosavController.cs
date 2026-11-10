@@ -87,6 +87,9 @@ namespace WebApi.Controllers
             var utcKezdo = dto.KezdoIdo.ToUniversalTime();
             var utcZaro = dto.ZaroIdo.ToUniversalTime();
 
+            var terem = await _context.Termek.FindAsync(dto.TeremID);
+            string teremszam = terem?.Teremszam ?? "Ismeretlen";
+
             bool vanFoglalas = await _context.Foglalasok.AnyAsync(f =>
                 f.TeremID == dto.TeremID && f.Allapot != "Torolve" &&
                 f.KezdoIdo < utcZaro && f.ZaroIdo > utcKezdo);
@@ -107,6 +110,16 @@ namespace WebApi.Controllers
             };
 
             _context.KarbantartasiIdosavok.Add(karbantartas);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Karbantartás Rögzítése",
+                Reszletek = $"Karbantartás rögzítve a(z) {teremszam} teremhez ({utcKezdo:yyyy.MM.dd HH:mm} - {utcZaro:HH:mm}): {karbantartas.Leiras}",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -114,11 +127,15 @@ namespace WebApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Modositas(int id, [FromBody] KarbantartasKeresDto dto)
         {
-            var karbantartas = await _context.KarbantartasiIdosavok.FindAsync(id);
+            var karbantartas = await _context.KarbantartasiIdosavok
+                .Include(k => k.Terem)
+                .FirstOrDefaultAsync(k => k.KarbantartasID == id);
+
             if (karbantartas == null) return NotFound();
 
             var utcKezdo = dto.KezdoIdo.ToUniversalTime();
             var utcZaro = dto.ZaroIdo.ToUniversalTime();
+            string teremszam = karbantartas.Terem?.Teremszam ?? "Ismeretlen";
 
             bool vanFoglalas = await _context.Foglalasok.AnyAsync(f =>
                 f.TeremID == dto.TeremID && f.Allapot != "Torolve" &&
@@ -136,6 +153,15 @@ namespace WebApi.Controllers
             karbantartas.ZaroIdo = utcZaro;
             karbantartas.Leiras = dto.Leiras ?? "Rendszeres karbantartás";
 
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Karbantartás Módosítása",
+                Reszletek = $"Karbantartás frissítve a(z) {teremszam} teremnél ({utcKezdo:yyyy.MM.dd HH:mm} - {utcZaro:HH:mm}).",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -143,10 +169,24 @@ namespace WebApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Torles(int id)
         {
-            var karbantartas = await _context.KarbantartasiIdosavok.FindAsync(id);
+            var karbantartas = await _context.KarbantartasiIdosavok
+                .Include(k => k.Terem)
+                .FirstOrDefaultAsync(k => k.KarbantartasID == id);
+
             if (karbantartas == null) return NotFound();
 
+            string teremszam = karbantartas.Terem?.Teremszam ?? "Ismeretlen";
             _context.KarbantartasiIdosavok.Remove(karbantartas);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Karbantartás Törlése",
+                Reszletek = $"Karbantartás törölve a(z) {teremszam} teremből.",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

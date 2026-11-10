@@ -63,6 +63,17 @@ namespace WebApi.Controllers
             }
 
             _context.Termek.Add(terem);
+
+            // Audit log rögzítés olvasható formában
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Terem Felvétele",
+                Reszletek = $"Új terem került rögzítésre: {dto.Teremszam} számú, {dto.Ferohely} férőhelyes terem.",
+                UzemeltetesiIgazgatoID = adminId > 0 ? adminId : 1,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok(terem);
         }
@@ -78,6 +89,7 @@ namespace WebApi.Controllers
             if (terem == null) return NotFound("A terem nem található.");
             if (dto.Ferohely < 0) return BadRequest("A férőhely nem lehet negatív!");
 
+            string regiTeremszam = terem.Teremszam;
             terem.Teremszam = dto.Teremszam;
             terem.Ferohely = dto.Ferohely;
             terem.Allapot = dto.Allapot;
@@ -94,6 +106,15 @@ namespace WebApi.Controllers
                     terem.Felszereltsegek.Add(f);
                 }
             }
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Terem Módosítása",
+                Reszletek = $"A(z) {regiTeremszam} számú terem adatai frissítve lettek (Új teremszám: {dto.Teremszam}, {dto.Ferohely} férőhely).",
+                UzemeltetesiIgazgatoID = adminId > 0 ? adminId : 1,
+                Idobelyeg = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
             return Ok(terem);
@@ -118,10 +139,20 @@ namespace WebApi.Controllers
             if (terem.KarbantartasiIdosavok.Any()) return BadRequest("A terem nem törölhető, mert tartozik hozzá karbantartási idősáv!");
             if (terem.Hibak.Any()) return BadRequest("A terem nem törölhető, mert be van jelentve hozzá hiba!");
 
-            // Leválasztjuk a felszereltségeket a teremről törlés előtt
+            string teremszam = terem.Teremszam;
+            int ferohely = terem.Ferohely;
             terem.Felszereltsegek.Clear();
-
             _context.Termek.Remove(terem);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Terem Törlése",
+                Reszletek = $"Terem törölve: {teremszam} számú ({ferohely} férőhelyes) terem.",
+                UzemeltetesiIgazgatoID = adminId > 0 ? adminId : 1,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

@@ -73,6 +73,9 @@ namespace WebApi.Controllers
             if (mesterkulcs == null || !mesterkulcs.MesterkulcsE)
                 return BadRequest("Érvénytelen mesterkulcs!");
 
+            var felhasznalo = await _context.Felhasznalok.FindAsync(dto.FelhasznaloID);
+            string felhasznaloNev = felhasznalo?.Nev ?? "Ismeretlen";
+
             var utcKezdet = dto.ErvenyessegKezdete.ToUniversalTime();
             var utcVeg = dto.ErvenyessegVege.ToUniversalTime();
 
@@ -94,6 +97,16 @@ namespace WebApi.Controllers
             };
 
             _context.MesterkulcsJogosultsagok.Add(jogosultsag);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Mesterkulcs Jogosultság Kiadása",
+                Reszletek = $"Mesterkulcs jogosultság kiadva {felhasznaloNev} részére ({utcKezdet:yyyy.MM.dd HH:mm} - {utcVeg:yyyy.MM.dd HH:mm} időtartamra).",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -101,7 +114,10 @@ namespace WebApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Modositas(int id, [FromBody] UjMesterkulcsJogosultsagDto dto)
         {
-            var jogosultsag = await _context.MesterkulcsJogosultsagok.FindAsync(id);
+            var jogosultsag = await _context.MesterkulcsJogosultsagok
+                .Include(m => m.Felhasznalo)
+                .FirstOrDefaultAsync(m => m.JogosultsagID == id);
+
             if (jogosultsag == null) return NotFound();
 
             if (dto.ErvenyessegKezdete >= dto.ErvenyessegVege)
@@ -111,6 +127,7 @@ namespace WebApi.Controllers
             if (mesterkulcs == null || !mesterkulcs.MesterkulcsE)
                 return BadRequest("Érvénytelen mesterkulcs!");
 
+            string felhasznaloNev = jogosultsag.Felhasznalo?.Nev ?? "Ismeretlen";
             var utcKezdet = dto.ErvenyessegKezdete.ToUniversalTime();
             var utcVeg = dto.ErvenyessegVege.ToUniversalTime();
 
@@ -129,6 +146,15 @@ namespace WebApi.Controllers
             jogosultsag.ErvenyessegKezdete = utcKezdet;
             jogosultsag.ErvenyessegVege = utcVeg;
 
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Mesterkulcs Jogosultság Módosítása",
+                Reszletek = $"Mesterkulcs jogosultság frissítve {felhasznaloNev} részére.",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -136,10 +162,24 @@ namespace WebApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Visszavonas(int id)
         {
-            var jogosultsag = await _context.MesterkulcsJogosultsagok.FindAsync(id);
+            var jogosultsag = await _context.MesterkulcsJogosultsagok
+                .Include(m => m.Felhasznalo)
+                .FirstOrDefaultAsync(m => m.JogosultsagID == id);
+
             if (jogosultsag == null) return NotFound();
 
+            string felhasznaloNev = jogosultsag.Felhasznalo?.Nev ?? "Ismeretlen";
             _context.MesterkulcsJogosultsagok.Remove(jogosultsag);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Mesterkulcs Jogosultság Visszavonása",
+                Reszletek = $"Mesterkulcs jogosultság visszavonva {felhasznaloNev} részéről.",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

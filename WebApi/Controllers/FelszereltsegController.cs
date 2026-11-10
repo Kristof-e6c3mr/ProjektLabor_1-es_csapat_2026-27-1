@@ -9,7 +9,7 @@ namespace WebApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Bárki bejelentkezett lekérdezheti a listát
+    [Authorize]
     public class FelszereltsegController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -24,14 +24,14 @@ namespace WebApi.Controllers
         {
             var lista = await _context.Set<Felszereltseg>()
                 .Select(f => new { f.FelszereltsegID, f.Nev })
-                .OrderBy(f => f.Nev) // ABC sorrendbe is rakjuk
+                .OrderBy(f => f.Nev)
                 .ToListAsync();
 
             return Ok(lista);
         }
 
         [HttpPost]
-        [Authorize(Roles = "Adminisztrator")] // Csak admin vehet fel újat
+        [Authorize(Roles = "Adminisztrator")]
         public async Task<IActionResult> UjFelszereltseg([FromBody] FelszereltsegInputDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Nev))
@@ -43,13 +43,22 @@ namespace WebApi.Controllers
 
             var ujFelszereltseg = new Felszereltseg { Nev = dto.Nev };
             _context.Set<Felszereltseg>().Add(ujFelszereltseg);
-            await _context.SaveChangesAsync();
 
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Felszereltseg Felvétele",
+                Reszletek = $"Új felszereltség rögzítve: {dto.Nev} nevű eszköz.",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
             return Ok(ujFelszereltseg);
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Adminisztrator")] // Csak admin törölhet
+        [Authorize(Roles = "Adminisztrator")]
         public async Task<IActionResult> DeleteFelszereltseg(int id)
         {
             var felszereltseg = await _context.Set<Felszereltseg>()
@@ -58,13 +67,22 @@ namespace WebApi.Controllers
 
             if (felszereltseg == null) return NotFound();
 
-            // Nem engedjük törölni, ha már van olyan terem, amiben ez benne van
             if (felszereltseg.Termek != null && felszereltseg.Termek.Any())
                 return BadRequest("A felszereltség nem törölhető, mert már hozzá van rendelve egy vagy több teremhez!");
 
+            string nev = felszereltseg.Nev;
             _context.Set<Felszereltseg>().Remove(felszereltseg);
-            await _context.SaveChangesAsync();
 
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Felszereltseg Törlése",
+                Reszletek = $"Felszereltség törölve: {nev} nevű eszköz.",
+                UzemeltetesiIgazgatoID = adminId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
     }

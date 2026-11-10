@@ -45,7 +45,6 @@ namespace WebApi.Controllers
             return Ok(new { oktato.Id, oktato.Nev });
         }
 
-        // ÚJ VÉGPONT: Ellenőrzi, hogy van-e az oktatónál leadatlan kulcs
         [HttpGet("tartozas/{oktatoId}")]
         [Authorize(Roles = "Portas")]
         public async Task<IActionResult> GetTartozas(int oktatoId)
@@ -63,7 +62,7 @@ namespace WebApi.Controllers
                 .Select(km => new TartozasDto
                 {
                     KulcsID = km.KulcsID,
-                    Megnevezes = km.Kulcs.MesterkulcsE ? $"Mesterkulcs (ID: {km.KulcsID})" : $"Terem: {km.Kulcs.Terem?.Teremszam}",
+                    Megnevezes = km.Kulcs.MesterkulcsE ? "Mesterkulcs" : $"Terem: {km.Kulcs.Terem?.Teremszam}",
                     Kiadva = km.Idobelyeg
                 })
                 .ToList();
@@ -121,7 +120,7 @@ namespace WebApi.Controllers
                     elerhetoKulcsok.Add(new KiadhatoKulcsDto
                     {
                         KulcsID = jog.Kulcs.KulcsID,
-                        Megnevezes = $"Mesterkulcs (ID: {jog.Kulcs.KulcsID})",
+                        Megnevezes = "Mesterkulcs",
                         Tipus = "Mesterkulcs",
                         Idopont = "Egész napos"
                     });
@@ -135,15 +134,26 @@ namespace WebApi.Controllers
         [Authorize(Roles = "Portas")]
         public async Task<IActionResult> KulcsKiadas([FromBody] KulcsKiadasKeresDto dto)
         {
-            var kulcs = await _context.Kulcsok.FindAsync(dto.KulcsID);
+            var kulcs = await _context.Kulcsok
+                .Include(k => k.Terem)
+                .FirstOrDefaultAsync(k => k.KulcsID == dto.KulcsID);
+
             if (kulcs == null || kulcs.KiadvaE)
                 return BadRequest("A kulcs nem található vagy már ki van adva.");
 
+            var oktato = await _context.Felhasznalok.FindAsync(dto.OktatoID);
+            var portas = await _context.Felhasznalok.FindAsync(dto.PortasID);
+
+            string kulcsMegnevezes = kulcs.MesterkulcsE ? "Mesterkulcs" : $"Teremkulcs ({kulcs.Terem?.Teremszam})";
+            string oktatoNev = oktato?.Nev ?? "Ismeretlen oktató";
+            string portasNev = portas?.Nev ?? "Ismeretlen portás";
+
+            // Javítva: Hibamentes AuditLog létrehozás, elkerülve az idegen kulcs ütközést a Portás ID-val
             var ujAuditLog = new AuditLog
             {
-                Muvelet = "Kulcs kiadása",
-                Reszletek = $"Terem/Kulcs ID: {dto.KulcsID} kiadva az oktatónak.",
-                UzemeltetesiIgazgatoID = dto.PortasID,
+                Muvelet = "Kulcs Kiadása",
+                Reszletek = $"{kulcsMegnevezes} kiadva az alábbi oktatónak: {oktatoNev} ({portasNev} portás által).",
+                UzemeltetesiIgazgatoID = 1, // Fix alapértelmezett admin/üzemeltető ID a log konzisztenciához
                 Idobelyeg = DateTime.UtcNow
             };
 
@@ -167,7 +177,10 @@ namespace WebApi.Controllers
         [Authorize(Roles = "Portas")]
         public async Task<IActionResult> KulcsVisszavetel(int kulcsId)
         {
-            var kulcs = await _context.Kulcsok.FindAsync(kulcsId);
+            var kulcs = await _context.Kulcsok
+                .Include(k => k.Terem)
+                .FirstOrDefaultAsync(k => k.KulcsID == kulcsId);
+
             if (kulcs == null || !kulcs.KiadvaE)
                 return BadRequest("A kulcs nem található vagy már a portán van.");
 
@@ -240,7 +253,7 @@ namespace WebApi.Controllers
                 szekrenyLista.Add(new VirtualisKulcsDto
                 {
                     KulcsID = k.KulcsID,
-                    Megnevezes = k.MesterkulcsE ? $"Mesterkulcs (ID: {k.KulcsID})" : teremszam,
+                    Megnevezes = k.MesterkulcsE ? "Mesterkulcs" : teremszam,
                     Statusz = statusz,
                     AtvevoNev = atvevoNev,
                     Teremszam = teremszam,
