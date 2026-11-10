@@ -145,16 +145,15 @@ namespace WebApi.Controllers
             var oktato = await _context.Felhasznalok.FindAsync(dto.OktatoID);
             var portas = await _context.Felhasznalok.FindAsync(dto.PortasID);
 
-            string kulcsMegnevezes = kulcs.MesterkulcsE ? "Mesterkulcs" : $"Teremkulcs ({kulcs.Terem?.Teremszam})";
+            string kulcsMegnevezes = kulcs.MesterkulcsE ? "Mesterkulcs" : $"{kulcs.Terem?.Teremszam} terem kulcsa";
             string oktatoNev = oktato?.Nev ?? "Ismeretlen oktató";
             string portasNev = portas?.Nev ?? "Ismeretlen portás";
 
-            // Javítva: Hibamentes AuditLog létrehozás, elkerülve az idegen kulcs ütközést a Portás ID-val
             var ujAuditLog = new AuditLog
             {
                 Muvelet = "Kulcs Kiadása",
                 Reszletek = $"{kulcsMegnevezes} kiadva az alábbi oktatónak: {oktatoNev} ({portasNev} portás által).",
-                UzemeltetesiIgazgatoID = 1, // Fix alapértelmezett admin/üzemeltető ID a log konzisztenciához
+                UzemeltetesiIgazgatoID = 1,
                 Idobelyeg = DateTime.UtcNow
             };
 
@@ -186,6 +185,21 @@ namespace WebApi.Controllers
                 return BadRequest("A kulcs nem található vagy már a portán van.");
 
             kulcs.KiadvaE = false;
+
+            string kulcsMegnevezes = kulcs.MesterkulcsE ? "Mesterkulcs" : $"{kulcs.Terem?.Teremszam} terem kulcsának";
+
+            var portasId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            var portas = await _context.Felhasznalok.FindAsync(portasId);
+            string portasNev = portas?.Nev ?? "Portás";
+
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Kulcs Visszavétele",
+                Reszletek = $"{kulcsMegnevezes} visszavétele megtörtént a portára ({portasNev} által).",
+                UzemeltetesiIgazgatoID = 1,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok();
