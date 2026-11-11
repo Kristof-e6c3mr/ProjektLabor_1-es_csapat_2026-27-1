@@ -55,8 +55,8 @@ namespace WebApi.Controllers
                 .Select(f => new
                 {
                     f.FoglalasID,
-                    Teremszam = f.Terem.Teremszam,
-                    OktatoNev = f.Oktato.Nev,
+                    Teremszam = f.Terem!.Teremszam,
+                    OktatoNev = f.Oktato!.Nev,
                     f.KezdoIdo,
                     f.ZaroIdo
                 })
@@ -71,7 +71,7 @@ namespace WebApi.Controllers
                 .Select(k => new
                 {
                     k.KarbantartasID,
-                    Teremszam = k.Terem.Teremszam,
+                    Teremszam = k.Terem!.Teremszam,
                     k.KezdoIdo,
                     k.ZaroIdo,
                     k.Leiras

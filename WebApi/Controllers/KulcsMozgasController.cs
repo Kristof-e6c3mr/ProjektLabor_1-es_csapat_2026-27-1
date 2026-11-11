@@ -52,7 +52,7 @@ namespace WebApi.Controllers
         {
             var aktivMozgasok = await _context.KulcsMozgasok
                 .Include(km => km.Kulcs)
-                .ThenInclude(k => k.Terem)
+                .ThenInclude(k => k!.Terem)
                 .Where(km => km.Kulcs != null && km.Kulcs.KiadvaE)
                 .ToListAsync();
 
@@ -63,7 +63,7 @@ namespace WebApi.Controllers
                 .Select(km => new TartozasDto
                 {
                     KulcsID = km.KulcsID,
-                    Megnevezes = km.Kulcs.MesterkulcsE ? "Mesterkulcs" : $"Terem: {km.Kulcs.Terem?.Teremszam}",
+                    Megnevezes = km.Kulcs!.MesterkulcsE ? "Mesterkulcs" : $"Terem: {km.Kulcs.Terem?.Teremszam}",
                     Kiadva = km.Idobelyeg
                 })
                 .ToList();
