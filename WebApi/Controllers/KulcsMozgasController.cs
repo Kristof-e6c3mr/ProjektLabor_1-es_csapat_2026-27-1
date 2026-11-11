@@ -230,7 +230,10 @@ namespace WebApi.Controllers
 
             foreach (var k in kulcsok)
             {
-                var aktivMozgas = aktivMozgasok.FirstOrDefault(km => km.KulcsID == k.KulcsID);
+                var aktivMozgas = aktivMozgasok
+                    .Where(km => km.KulcsID == k.KulcsID)
+                    .OrderByDescending(km => km.Idobelyeg)
+                    .FirstOrDefault();
                 string statusz = "Bent";
                 string atvevoNev = "-";
 
@@ -239,15 +242,24 @@ namespace WebApi.Controllers
                     statusz = "Kiadva";
                     atvevoNev = aktivMozgas.Atvevo?.Nev ?? "Ismeretlen";
 
-                    var lejartFoglalas = maiFoglalasok.FirstOrDefault(f => f.TeremID == k.TeremID && f.OktatoID == aktivMozgas.AtvevoID && f.ZaroIdo < mostUtc);
-                    if (lejartFoglalas != null || aktivMozgas.Idobelyeg.AddHours(4) < mostUtc)
+                    var kiadasIdo = aktivMozgas.Idobelyeg;
+                    var aktivFoglalasok = maiFoglalasok
+                        .Where(f => f.TeremID == k.TeremID && f.OktatoID == aktivMozgas.AtvevoID && f.Allapot == "Aktiv")
+                        .OrderBy(f => f.KezdoIdo)
+                        .ToList();
+
+                    var kapcsolodoFoglalas = aktivFoglalasok.FirstOrDefault(f => f.KezdoIdo <= kiadasIdo && kiadasIdo <= f.ZaroIdo)
+                        ?? aktivFoglalasok.FirstOrDefault(f => f.KezdoIdo > kiadasIdo)
+                        ?? aktivFoglalasok.LastOrDefault(f => f.ZaroIdo < kiadasIdo);
+
+                    if ((kapcsolodoFoglalas != null && kapcsolodoFoglalas.ZaroIdo < mostUtc) || kiadasIdo.AddHours(4) < mostUtc)
                     {
                         statusz = "Késik";
                     }
                 }
                 else if (!k.KiadvaE && !k.MesterkulcsE)
                 {
-                    var teremFoglalasok = maiFoglalasok.Where(f => f.TeremID == k.TeremID).OrderBy(f => f.KezdoIdo).ToList();
+                    var teremFoglalasok = maiFoglalasok.Where(f => f.TeremID == k.TeremID && f.Allapot == "Aktiv").OrderBy(f => f.KezdoIdo).ToList();
 
                     var keso = teremFoglalasok.FirstOrDefault(f => f.KezdoIdo <= mostUtc && f.ZaroIdo > mostUtc);
                     if (keso != null)
