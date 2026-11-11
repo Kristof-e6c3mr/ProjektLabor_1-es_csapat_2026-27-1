@@ -49,7 +49,7 @@ namespace WebApi.Controllers
                 .Include(f => f.Oktato)
                 .Include(f => f.Terem)
                 .Where(f => f.TeremID == dto.TeremID &&
-                            f.Allapot != "Torolve" &&
+                            f.Allapot == "Aktiv" &&
                             f.KezdoIdo < utcZaro &&
                             f.ZaroIdo > utcKezdo)
                 .Select(f => new
@@ -91,7 +91,7 @@ namespace WebApi.Controllers
             string teremszam = terem?.Teremszam ?? "Ismeretlen";
 
             bool vanFoglalas = await _context.Foglalasok.AnyAsync(f =>
-                f.TeremID == dto.TeremID && f.Allapot != "Torolve" &&
+                f.TeremID == dto.TeremID && f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro && f.ZaroIdo > utcKezdo);
 
             bool vanMasKarbantartas = await _context.KarbantartasiIdosavok.AnyAsync(k =>
@@ -138,7 +138,7 @@ namespace WebApi.Controllers
             string teremszam = karbantartas.Terem?.Teremszam ?? "Ismeretlen";
 
             bool vanFoglalas = await _context.Foglalasok.AnyAsync(f =>
-                f.TeremID == dto.TeremID && f.Allapot != "Torolve" &&
+                f.TeremID == dto.TeremID && f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro && f.ZaroIdo > utcKezdo);
 
             bool vanMasKarbantartas = await _context.KarbantartasiIdosavok.AnyAsync(k =>

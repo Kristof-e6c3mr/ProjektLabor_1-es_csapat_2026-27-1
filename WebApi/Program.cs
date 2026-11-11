@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+
 using Npgsql;
 
 using Scalar.AspNetCore;

@@ -73,7 +73,7 @@ namespace WebApi.Controllers
 
             bool utkozik = await _context.Foglalasok.AnyAsync(f =>
                 f.TeremID == dto.TeremID &&
-                f.Allapot != "Torolve" &&
+                f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro &&
                 f.ZaroIdo > utcKezdo);
 
@@ -130,7 +130,7 @@ namespace WebApi.Controllers
             bool utkozik = await _context.Foglalasok.AnyAsync(f =>
                 f.FoglalasID != id &&
                 f.TeremID == dto.TeremID &&
-                f.Allapot != "Torolve" &&
+                f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro &&
                 f.ZaroIdo > utcKezdo);
 

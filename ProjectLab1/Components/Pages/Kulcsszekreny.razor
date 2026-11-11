@@ -1,4 +1,5 @@
 ﻿@page "/szekreny"
+@implements IDisposable
 @using System.Text.RegularExpressions
 @inject HttpClient Http
 @inject IJSRuntime JS
@@ -149,11 +150,33 @@
 @code {
     private List<VirtualisKulcsDto>? szekreny;
     private int villogoKulcsId = 0;
+    private System.Threading.Timer? autoFrissitesTimer;
+    private static readonly TimeSpan AutoFrissitesIntervallum = TimeSpan.FromSeconds(15);
 
     protected override async Task OnInitializedAsync()
     {
         if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Portas", "Adminisztrator")) return;
         await AdatokBetoltese();
+
+        autoFrissitesTimer = new System.Threading.Timer(async _ =>
+        {
+            try
+            {
+                await InvokeAsync(async () =>
+                {
+                    await AdatokBetoltese();
+                    StateHasChanged();
+                });
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }, null, AutoFrissitesIntervallum, AutoFrissitesIntervallum);
+    }
+
+    public void Dispose()
+    {
+        autoFrissitesTimer?.Dispose();
     }
 
     private async Task AdatokBetoltese()
