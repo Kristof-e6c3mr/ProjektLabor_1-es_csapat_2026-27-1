@@ -97,7 +97,7 @@ namespace WebApi.Tests
 
             Assert.True(response.IsSuccessStatusCode);
 
-            
+
             var karbantartasok = await client.GetFromJsonAsync<List<KarbantartasDto>>("/api/karbantartasiidosav");
             Assert.Contains(karbantartasok!, k => k.Leiras == ujKarbantartas.Leiras);
         }
