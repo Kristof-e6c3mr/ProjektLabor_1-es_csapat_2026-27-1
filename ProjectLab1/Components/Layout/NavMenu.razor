@@ -1,65 +1,4 @@
-﻿<!--
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">ProjectLab1</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="Login">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Login
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="hibajegy">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Hibajegy felvétel
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="termek">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Termek kezelése
-             </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="kulcsok">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Kulcsok kezelése
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="kulcsfelvetel">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Kulcs kiadás
-            </NavLink>
-        </div>
-    </nav>
-</div>
--->
-@inject ProjectLab1.Services.UserSessionService UserSession
+﻿@inject ProjectLab1.Services.UserSessionService UserSession
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -85,6 +24,11 @@
                     <span class="bi bi-calendar-check" aria-hidden="true"></span> Saját foglalásaim
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="pin-lekerdezes">
+                    <span class="bi bi-key" aria-hidden="true"></span> Saját PIN kód
+                </NavLink>
+            </div>
         }
 
         @if (UserSession.Role == "Portas")
@@ -100,11 +44,16 @@
                     <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegy felvétele
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="szekreny">
+                    <span class="bi bi-grid-3x3-gap" aria-hidden="true"></span> Kulcsszekrény
+                </NavLink>
+            </div>
         }
 
         @if (UserSession.Role == "Adminisztrator")
         {
-            <!-- ADMINISZTRÁTOR: teremtörzs, kulcstörzs, mesterkulcs jogosultság, karbantartási idősáv -->
+            <!-- ADMINISZTRÁTOR: teremtörzs, kulcstörzs, mesterkulcs jogosultság, karbantartási idősáv, hibajegyek -->
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="termek">
                     <span class="bi bi-building" aria-hidden="true"></span> Termek kezelése
@@ -125,13 +74,23 @@
                     <span class="bi bi-tools" aria-hidden="true"></span> Karbantartások
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin-hibajegyek">
+                    <span class="bi bi-exclamation-triangle" aria-hidden="true"></span> Hibajegyek kezelése
+                </NavLink>
+            </div> <!-- EZ A ZÁRÓ TAG HIÁNYZOTT -->
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="felszereltsegek">
+                    <span class="bi bi-tools" aria-hidden="true"></span> Felszereltségek
+                </NavLink>
+            </div>
         }
 
         @if (UserSession.Role == "UzemeltetesiIgazgato")
         {
-            <!-- ÜZEMELTETÉSI IGAZGATÓ: (Riportok / audit log - ha van külön komponens, vagy a főoldalról érik el) -->
+            <!-- ÜZEMELTETÉSI IGAZGATÓ: (Riportok / audit log) -->
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="">
+                <NavLink class="nav-link" href="riportok">
                     <span class="bi bi-graph-up" aria-hidden="true"></span> Riportok & Elemzések
                 </NavLink>
             </div>

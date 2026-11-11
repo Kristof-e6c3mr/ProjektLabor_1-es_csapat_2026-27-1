@@ -18,7 +18,16 @@ namespace ProjectLab1.Services
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _userSession.Token);
             }
 
-            return await base.SendAsync(request, cancellationToken);
+            var response = await base.SendAsync(request, cancellationToken);
+
+            // 401 = hiányzó/lejárt/érvénytelen token: a munkamenet megszűnt, ki kell jelentkeztetni.
+            // A 403 (jogosultság hiánya) NEM jelent kijelentkeztetést.
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _userSession.Logout();
+            }
+
+            return response;
         }
     }
 }

@@ -1,0 +1,83 @@
+﻿@page "/pin-lekerdezes"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Saját PIN kód</PageTitle>
+
+<div class="container mt-4">
+    <h3>Saját PIN kód lekérdezése</h3>
+    <hr />
+
+    <div class="card shadow-sm" style="max-width: 500px;">
+        <div class="card-body">
+            <p class="text-muted">Itt tudod lekérdezni a saját PIN kódodat, amelyre a portán a kulcsok átvételekor lesz szükséged.</p>
+
+            <button class="btn btn-primary w-100 mb-3" @onclick="PinLekerdezese">
+                PIN kód megjelenítése
+            </button>
+
+            @if (!string.IsNullOrEmpty(pinKod))
+            {
+                <div class="alert alert-success text-center fs-4 fw-bold">
+                    A PIN kódod: @pinKod
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(hibaUzenet))
+            {
+                <div class="alert alert-danger">
+                    @hibaUzenet
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string pinKod = "";
+    private string hibaUzenet = "";
+
+    protected override void OnInitialized()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Oktato", "Portas", "Adminisztrator"))
+        {
+            return;
+        }
+    }
+
+    private async Task PinLekerdezese()
+    {
+        hibaUzenet = "";
+        pinKod = "";
+
+        try
+        {
+            int userId = UserSession.UserId;
+            // Itt már az új "pinkerdezes" útvonalat hívjuk:
+            var response = await Http.GetAsync($"api/pinkerdezes/sajat-pin/{userId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<PinValaszDto>();
+                if (result != null)
+                {
+                    pinKod = result.PinKod;
+                }
+            }
+            else
+            {
+                hibaUzenet = "Nem sikerült lekérdezni a PIN kódot.";
+            }
+        }
+        catch (Exception)
+        {
+            hibaUzenet = "Hálózati hiba történt a lekérdezés során.";
+        }
+    }
+
+    public class PinValaszDto
+    {
+        public string PinKod { get; set; } = "";
+    }
+}

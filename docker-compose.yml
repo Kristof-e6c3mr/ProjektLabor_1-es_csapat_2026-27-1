@@ -7,6 +7,8 @@ services:
       dockerfile: ProjectLab1/Dockerfile 
     depends_on:
       - webapi
+    environment:
+      - TZ=Europe/Budapest
     ports:
       - "5000:8080" 
 
@@ -21,6 +23,7 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=BlazorAppDb;Username=admin;Password=YourSecurePassword123!
       - SEED_PASSWORD=titkos123 # Innen olvassa ki a tesztadatok jelszavát
+      - TZ=Europe/Budapest
 
   #POSTGRES
   db:
@@ -29,6 +32,7 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: YourSecurePassword123!
       POSTGRES_DB: BlazorAppDb
+      TZ: Europe/Budapest
     ports:
       - "5432:5432"
     volumes:

@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+using Npgsql;
+
 using Scalar.AspNetCore;
 
 using WebApi.Data;    // AppDbContext
@@ -87,6 +89,9 @@ namespace WebApi
             // Autorizáció regisztrálása
             builder.Services.AddAuthorization();
 
+            // No-show háttérszolgáltatás regisztrálása
+            builder.Services.AddHostedService<WebApi.Services.NoShowBackgroundService>();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -104,6 +109,21 @@ namespace WebApi
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // Hibás bemenet (pl. nem létező FK azonosító) ne 500-at, hanem 4xx-et adjon vissza
+            app.Use(async (context, next) =>
+            {
+                try
+                {
+                    await next();
+                }
+                catch (Exception ex) when (ex is DbUpdateException or PostgresException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync("""{"error":"Hibás bemenet: az adatok érvénytelenek vagy ütköznek az adatbázis korlátaival."}""");
+                }
+            });
+
             app.MapControllers();
 
             // --- ADATBÁZIS INICIALIZÁLÁSA ÉS TESZTADATOK FELTÖLTÉSE ---
@@ -120,7 +140,7 @@ namespace WebApi
             // A bejelentkezést mostantól a valós adatbázist használó LoginController kezeli!
 
             // Szolgáltatás állapotjelző (Health Check) végpont
-            app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck");
+            app.MapGet("/api/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow })).WithName("HealthCheck").RequireAuthorization();
 
             // Alapvető adat-lekérdező végpont (felhasználók listázása)
             app.MapGet("/api/felhasznalok", async (AppDbContext db) =>
@@ -128,7 +148,7 @@ namespace WebApi
                 return await db.Felhasznalok
                     .Select(f => new { f.Id, f.Nev, f.Email, f.Szerepkor })
                     .ToListAsync();
-            }).WithName("GetFelhasznalok");
+            }).WithName("GetFelhasznalok").RequireAuthorization();
 
             app.Run();
         }

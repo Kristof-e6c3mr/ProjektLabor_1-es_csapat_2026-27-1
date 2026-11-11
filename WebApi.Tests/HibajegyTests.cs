@@ -11,12 +11,12 @@ using WebApi.Data;
 
 namespace WebApi.Tests
 {
-    public class HibaTests : IClassFixture<WebApplicationFactory<Program>>
+    public class HibaJegyTests : IClassFixture<WebApplicationFactory<Program>>
     {
         private readonly WebApplicationFactory<Program> _factory;
         private static readonly string SeedPassword = Environment.GetEnvironmentVariable("SEED_PASSWORD") ?? "Titkos123!";
 
-        public HibaTests(WebApplicationFactory<Program> factory)
+        public HibaJegyTests(WebApplicationFactory<Program> factory)
         {
             string dbName = "TestDb_Hiba_" + Guid.NewGuid();
 

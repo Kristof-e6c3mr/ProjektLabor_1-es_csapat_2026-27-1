@@ -73,7 +73,7 @@ namespace WebApi.Controllers
 
             bool utkozik = await _context.Foglalasok.AnyAsync(f =>
                 f.TeremID == dto.TeremID &&
-                f.Allapot != "Torolve" &&
+                f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro &&
                 f.ZaroIdo > utcKezdo);
 
@@ -85,6 +85,12 @@ namespace WebApi.Controllers
             if (utkozik) return BadRequest("Ütközés! A megadott időpontban a terem már foglalt.");
             if (karbantartasUtkozik) return BadRequest("A megadott időpontban a terem karbantartás alatt áll!");
 
+            var terem = await _context.Termek.FindAsync(dto.TeremID);
+            var oktato = await _context.Felhasznalok.FindAsync(dto.OktatoID);
+
+            string teremszam = terem?.Teremszam ?? "Ismeretlen";
+            string oktatoNev = oktato?.Nev ?? "Ismeretlen oktató";
+
             var foglalas = new Foglalas
             {
                 TeremID = dto.TeremID,
@@ -95,6 +101,15 @@ namespace WebApi.Controllers
             };
 
             _context.Foglalasok.Add(foglalas);
+
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Terem Foglalás",
+                Reszletek = $"Új foglalás rögzítve: {oktatoNev} lefoglalta a(z) {teremszam} termet {utcKezdo:yyyy.MM.dd HH:mm} és {utcZaro:HH:mm} között.",
+                UzemeltetesiIgazgatoID = dto.OktatoID,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -102,7 +117,11 @@ namespace WebApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> FoglalasModositas(int id, [FromBody] UjFoglalasDto dto)
         {
-            var foglalas = await _context.Foglalasok.FindAsync(id);
+            var foglalas = await _context.Foglalasok
+                .Include(f => f.Terem)
+                .Include(f => f.Oktato)
+                .FirstOrDefaultAsync(f => f.FoglalasID == id);
+
             if (foglalas == null) return NotFound();
 
             var utcKezdo = dto.KezdoIdo.ToUniversalTime();
@@ -111,7 +130,7 @@ namespace WebApi.Controllers
             bool utkozik = await _context.Foglalasok.AnyAsync(f =>
                 f.FoglalasID != id &&
                 f.TeremID == dto.TeremID &&
-                f.Allapot != "Torolve" &&
+                f.Allapot == "Aktiv" &&
                 f.KezdoIdo < utcZaro &&
                 f.ZaroIdo > utcKezdo);
 
@@ -123,9 +142,20 @@ namespace WebApi.Controllers
             if (utkozik || karbUtkozik)
                 return BadRequest("Az új időpont/terem ütközik egy másik foglalással vagy karbantartással!");
 
+            var ujTerem = await _context.Termek.FindAsync(dto.TeremID);
+            string teremszam = ujTerem?.Teremszam ?? foglalas.Terem?.Teremszam ?? "Ismeretlen";
+
             foglalas.TeremID = dto.TeremID;
             foglalas.KezdoIdo = utcKezdo;
             foglalas.ZaroIdo = utcZaro;
+
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Foglalás Módosítása",
+                Reszletek = $"Foglalás módosítva (ID: {id}): átkerült a(z) {teremszam} teremre ({utcKezdo:yyyy.MM.dd HH:mm} - {utcZaro:HH:mm}).",
+                UzemeltetesiIgazgatoID = dto.OktatoID > 0 ? dto.OktatoID : 1,
+                Idobelyeg = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
             return Ok();
@@ -134,10 +164,28 @@ namespace WebApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Torles(int id)
         {
-            var foglalas = await _context.Foglalasok.FindAsync(id);
+            var foglalas = await _context.Foglalasok
+                .Include(f => f.Terem)
+                .Include(f => f.Oktato)
+                .FirstOrDefaultAsync(f => f.FoglalasID == id);
+
             if (foglalas == null) return NotFound();
 
+            string teremszam = foglalas.Terem?.Teremszam ?? "Ismeretlen";
+            string oktatoNev = foglalas.Oktato?.Nev ?? "Ismeretlen";
+            string idoszak = $"{foglalas.KezdoIdo:yyyy.MM.dd HH:mm}-{foglalas.ZaroIdo:HH:mm}";
+
             _context.Foglalasok.Remove(foglalas);
+
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "1");
+            _context.AuditLogok.Add(new AuditLog
+            {
+                Muvelet = "Foglalás Törlése",
+                Reszletek = $"Foglalás törölve (ID: {id}): {oktatoNev} által a(z) {teremszam} teremre rögzített ({idoszak}) idősávú foglalás.",
+                UzemeltetesiIgazgatoID = userId,
+                Idobelyeg = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
             return NoContent();
         }

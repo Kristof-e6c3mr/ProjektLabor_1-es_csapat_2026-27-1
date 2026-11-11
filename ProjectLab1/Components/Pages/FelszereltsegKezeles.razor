@@ -1,0 +1,132 @@
+﻿@page "/felszereltsegek"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ProjectLab1.Services.UserSessionService UserSession
+
+<PageTitle>Felszereltségek kezelése</PageTitle>
+
+<div class="container mt-4">
+    <h3>Felszereltségek törzsadatai</h3>
+    <hr />
+
+    <div class="row mb-4 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label fw-bold">Új felszereltség megnevezése</label>
+            <input type="text" class="form-control" @bind="ujFelszereltsegNev" placeholder="pl. 3D Nyomtató" />
+        </div>
+        <div class="col-md-3 mb-1">
+            <button class="btn btn-success" @onclick="FelszereltsegHozzaadasa">Hozzáadás</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(hibaUzenet))
+    {
+        <div class="alert alert-danger mb-4">@hibaUzenet</div>
+    }
+
+    @if (felszereltsegek == null)
+    {
+        <p><em>Betöltés...</em></p>
+    }
+    else if (!felszereltsegek.Any())
+    {
+        <p>Nincsenek rögzített felszereltségek.</p>
+    }
+    else
+    {
+        <table class="table table-striped w-50 align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Megnevezés</th>
+                    <th>Műveletek</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in felszereltsegek)
+                {
+                    <tr>
+                        <td>@f.FelszereltsegID</td>
+                        <td class="fw-bold">@f.Nev</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => FelszereltsegTorlese(f.FelszereltsegID, f.Nev)">Törlés</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<FelszereltsegDto>? felszereltsegek;
+    private string ujFelszereltsegNev = "";
+    private string hibaUzenet = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AccessGuard.DenyIfMissingRole(UserSession, Navigation, "Adminisztrator")) return;
+        await AdatokBetoltese();
+    }
+
+    private async Task AdatokBetoltese()
+    {
+        felszereltsegek = await HttpAccess.GetJsonAsync<List<FelszereltsegDto>>(Http, Navigation, "api/felszereltseg");
+    }
+
+    private async Task FelszereltsegHozzaadasa()
+    {
+        hibaUzenet = "";
+        if (string.IsNullOrWhiteSpace(ujFelszereltsegNev))
+        {
+            hibaUzenet = "A megnevezés nem lehet üres!";
+            return;
+        }
+
+        var dto = new FelszereltsegInputDto { Nev = ujFelszereltsegNev };
+        var response = await Http.PostAsJsonAsync("api/felszereltseg", dto);
+        if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+        if (response.IsSuccessStatusCode)
+        {
+            ujFelszereltsegNev = "";
+            await AdatokBetoltese();
+        }
+        else
+        {
+            hibaUzenet = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task FelszereltsegTorlese(int id, string nev)
+    {
+        hibaUzenet = "";
+        bool megerositve = await JS.InvokeAsync<bool>("confirm", $"Biztosan törölni szeretnéd a(z) {nev} felszereltséget?");
+        if (megerositve)
+        {
+            var response = await Http.DeleteAsync($"api/felszereltseg/{id}");
+            if (HttpAccess.RedirectIfDenied(response, Navigation)) return;
+
+            if (response.IsSuccessStatusCode)
+            {
+                await AdatokBetoltese();
+            }
+            else
+            {
+                hibaUzenet = await response.Content.ReadAsStringAsync();
+            }
+        }
+    }
+
+    public class FelszereltsegDto
+    {
+        public int FelszereltsegID { get; set; }
+        public string Nev { get; set; } = "";
+    }
+
+    public class FelszereltsegInputDto
+    {
+        public string Nev { get; set; } = "";
+    }
+}
